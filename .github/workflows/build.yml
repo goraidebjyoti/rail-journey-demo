@@ -7,10 +7,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { distribution: 'temurin', java-version: '17' }
-      - name: Grant execute permission
-        run: chmod +x RailJourneyDemo/gradlew
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.9' }
       - name: Build debug APK
-        run: cd RailJourneyDemo && ./gradlew assembleDebug
+        run: cd RailJourneyDemo && gradle assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
