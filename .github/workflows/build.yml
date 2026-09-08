@@ -10,8 +10,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '8.9' }
       - name: Build debug APK
-        run: cd RailJourneyDemo && gradle assembleDebug
+        run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: RailJourneyDemo/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
