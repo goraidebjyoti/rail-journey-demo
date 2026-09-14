@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +23,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -277,19 +283,47 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
     val seconds = secondsLeft % 60
     val countdown = "%02d:%02d".format(minutes, seconds)
 
-    Column(Modifier.fillMaxSize().background(PageBg).verticalScroll(rememberScrollState())) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(PageBg)
+            .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
+    ) {
         Row(
-            Modifier.fillMaxWidth().background(HeaderBlue).padding(horizontal = 14.dp, vertical = 16.dp),
+            Modifier
+                .fillMaxWidth()
+                .background(HeaderBlue)
+                .statusBarsPadding()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TextButton(onClick = onBack, modifier = Modifier.size(52.dp)) {
-                Text("←", color = Color.White, fontSize = 38.sp)
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(52.dp)
+                    .border(1.8.dp, Color.White, CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                    modifier = Modifier.size(30.dp)
+                )
             }
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("Booking Details", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                Text("Booking Details", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                 Text("Mobile: *", color = Color.White, fontSize = 15.sp)
             }
-            Text("↗", color = Color.White, fontSize = 34.sp)
+            IconButton(onClick = { }, modifier = Modifier.size(48.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "Share",
+                    tint = Color.White,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
         }
 
         Column(Modifier.padding(horizontal = 12.dp, vertical = 16.dp)) {
@@ -311,7 +345,7 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .height(336.dp)
+                        .height(176.dp)
                         .background(TicketBlack),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -327,35 +361,36 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
                         Text(
                             "Dynamic preview will close in",
                             color = Color.White,
-                            fontSize = 19.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(Modifier.height(10.dp))
-                        Text(countdown, color = RedOrange, fontSize = 51.sp, fontWeight = FontWeight.ExtraBold)
+                        Spacer(Modifier.height(3.dp))
+                        Text(countdown, color = RedOrange, fontSize = 43.sp, fontWeight = FontWeight.ExtraBold)
+                        Spacer(Modifier.height(0.dp))
+                        Text("Ticket Booking Date & Time", color = Color.White, fontSize = 13.sp)
                         Spacer(Modifier.height(2.dp))
-                        Text("Ticket Booking Date & Time", color = Color.White, fontSize = 15.sp)
-                        Spacer(Modifier.height(4.dp))
                         Text(
                             data.bookingDateTime,
                             color = Yellow,
-                            fontSize = 22.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(Modifier.height(26.dp))
-                        Text("Ticket is Non-Transferable", color = Color.White, fontSize = 14.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Ticket is Non-Transferable", color = Color.White, fontSize = 13.sp)
                     }
                     SideRailwayText(text = "भारतीय रेल", isHindi = true)
                 }
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(14.dp))
             Text("Journey Ticket", fontSize = 23.sp, color = TextBlue)
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(14.dp))
 
+            val stationOrigin = data.origin.removeSuffix(" T").trim()
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Text(data.origin, fontSize = 18.sp, color = TextBlue, modifier = Modifier.weight(1f))
+                Text(stationOrigin, fontSize = 18.sp, color = TextBlue, modifier = Modifier.weight(1f))
                 Text("—${data.distance}—", fontSize = 15.sp, color = TextBlue, textAlign = TextAlign.Center)
                 Text(data.destination, fontSize = 18.sp, color = TextBlue, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
             }
@@ -407,32 +442,36 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
 private fun SideRailwayText(text: String, isHindi: Boolean) {
     Box(
         Modifier
-            .width(55.dp)
+            .width(45.dp)
             .fillMaxHeight()
-            .padding(vertical = 14.dp),
+            .clipToBounds(),
         contentAlignment = Alignment.Center
     ) {
-        // Dashed ticket perforation line, matching the reference layout.
-        androidx.compose.foundation.Canvas(Modifier.fillMaxHeight().width(2.dp)) {
+        androidx.compose.foundation.Canvas(
+            Modifier
+                .fillMaxHeight()
+                .width(2.dp)
+        ) {
             drawLine(
                 color = Color.White,
                 start = androidx.compose.ui.geometry.Offset(size.width / 2f, 0f),
                 end = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height),
-                strokeWidth = 2.2f,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 7f))
+                strokeWidth = 2f,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(7f, 7f))
             )
         }
         Text(
             text = text,
             color = Color.White,
-            fontSize = if (isHindi) 17.sp else 13.sp,
+            fontSize = if (isHindi) 16.sp else 12.sp,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
             maxLines = 1,
             modifier = Modifier
-                .rotate(-90f)
+                .width(176.dp)
                 .background(TicketBlack)
-                .padding(horizontal = 8.dp, vertical = 2.dp)
+                .rotate(-90f)
+                .padding(horizontal = 4.dp, vertical = 0.dp)
         )
     }
 }
