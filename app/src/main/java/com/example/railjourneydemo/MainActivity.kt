@@ -15,6 +15,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -293,27 +296,57 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             Text("Thank You ${data.passengerName}, Happy Journey !", fontSize = 19.sp, color = TextBlue)
             Spacer(Modifier.height(20.dp))
 
-            Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(21.dp)).background(TicketBlack)
+            // Ticket preview: blue top/bottom tint with the black railway-style centre panel.
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(21.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xFF10A8F4), Color(0xFF148FEA), Color(0xFF10A8F4))
+                        )
+                    )
+                    .padding(vertical = 12.dp)
             ) {
-                Row(Modifier.fillMaxWidth().height(360.dp), verticalAlignment = Alignment.CenterVertically) {
-                    SideRailwayText()
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(336.dp)
+                        .background(TicketBlack),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SideRailwayText(text = "INDIAN RAILWAYS", isHindi = false)
                     Column(
-                        Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp),
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(horizontal = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text("Dynamic preview will close in", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                        Text(
+                            "Dynamic preview will close in",
+                            color = Color.White,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
                         Spacer(Modifier.height(10.dp))
                         Text(countdown, color = RedOrange, fontSize = 51.sp, fontWeight = FontWeight.ExtraBold)
                         Spacer(Modifier.height(2.dp))
                         Text("Ticket Booking Date & Time", color = Color.White, fontSize = 15.sp)
                         Spacer(Modifier.height(4.dp))
-                        Text(data.bookingDateTime, color = Yellow, fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                        Text(
+                            data.bookingDateTime,
+                            color = Yellow,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
                         Spacer(Modifier.height(26.dp))
                         Text("Ticket is Non-Transferable", color = Color.White, fontSize = 14.sp)
                     }
-                    SideRailwayText()
+                    SideRailwayText(text = "भारतीय रेल", isHindi = true)
                 }
             }
 
@@ -371,15 +404,36 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
 }
 
 @Composable
-private fun SideRailwayText() {
-    Column(
-        Modifier.width(54.dp).fillMaxHeight().padding(vertical = 25.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+private fun SideRailwayText(text: String, isHindi: Boolean) {
+    Box(
+        Modifier
+            .width(55.dp)
+            .fillMaxHeight()
+            .padding(vertical = 14.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Text("┆", color = Color.White, fontSize = 24.sp)
-        Text("I\nN\nD\nI\nA\nN   R\nA\nI\nL\nW\nA\nY\nS", color = Color.White, fontSize = 12.sp, lineHeight = 13.sp, textAlign = TextAlign.Center)
-        Text("┆", color = Color.White, fontSize = 24.sp)
+        // Dashed ticket perforation line, matching the reference layout.
+        androidx.compose.foundation.Canvas(Modifier.fillMaxHeight().width(2.dp)) {
+            drawLine(
+                color = Color.White,
+                start = androidx.compose.ui.geometry.Offset(size.width / 2f, 0f),
+                end = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height),
+                strokeWidth = 2.2f,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 7f))
+            )
+        }
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = if (isHindi) 17.sp else 13.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            modifier = Modifier
+                .rotate(-90f)
+                .background(TicketBlack)
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+        )
     }
 }
 
