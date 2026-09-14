@@ -159,7 +159,11 @@ private fun InputScreen(
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         // Input page: the only action at the bottom is Generate Ticket.
         Row(
-            Modifier.fillMaxWidth().background(HeaderBlue).padding(horizontal = 18.dp, vertical = 18.dp),
+            Modifier
+                .fillMaxWidth()
+                .background(HeaderBlue)
+                .statusBarsPadding()
+                .padding(horizontal = 18.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Booking Details", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
@@ -384,17 +388,15 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             }
 
             Spacer(Modifier.height(14.dp))
-            Text("Journey Ticket", fontSize = 21.sp, color = TextBlue)
+            Text("Journey Ticket", fontSize = 21.sp, color = TextBlue, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(14.dp))
 
             val stationOrigin = data.origin.removeSuffix(" T").trim()
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Text(stationOrigin, fontSize = 16.sp, color = TextBlue, modifier = Modifier.weight(1f))
+                Text(stationOrigin, fontSize = 16.sp, color = TextBlue, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 Text("—${data.distance}—", fontSize = 14.sp, color = TextBlue, textAlign = TextAlign.Center)
-                Text(data.destination, fontSize = 16.sp, color = TextBlue, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                Text(data.destination, fontSize = 16.sp, color = TextBlue, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
             }
-            Spacer(Modifier.height(2.dp))
-            Text("T", fontSize = 16.sp, color = TextBlue)
             Spacer(Modifier.height(12.dp))
 
             InfoRow("Via", data.via, "Passenger", "${data.adults} Adult, ${data.children} Child")
@@ -419,7 +421,7 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
                 Modifier
                     .fillMaxWidth()
                     .height(13.dp)
-                    .clip(RoundedCornerShape(0.dp))
+                    .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
                     .background(
                         Brush.horizontalGradient(
                             listOf(Color(0xFF10A8F4), Color(0xFF148FEA), Color(0xFF10A8F4))
@@ -491,20 +493,21 @@ private fun SideRailwayText(text: String, isHindi: Boolean) {
                 pathEffect = effect
             )
         }
-        // Keep the full bilingual railway branding inside the side rail.
-        // A fixed box + 90° rotation prevents the end of the string from
-        // being clipped by the narrow side column.
+
+        // Measure the full phrase in a tall, narrow box BEFORE rotation.
+        // This prevents the parent from clipping the rotated text and ensures
+        // the complete "INDIAN RAILWAYS" / "भारतीय रेल" is visible.
         Text(
             text = text,
             color = Color.White,
             fontSize = if (isHindi) 13.sp else 11.sp,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             maxLines = 1,
             softWrap = false,
             modifier = Modifier
-                .width(172.dp)
-                .height(28.dp)
+                .width(28.dp)
+                .height(172.dp)
                 .rotate(-90f)
         )
     }
