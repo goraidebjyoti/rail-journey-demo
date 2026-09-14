@@ -193,7 +193,7 @@ private fun InputScreen(
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 Field("Class", data.className, setClassName, Modifier.weight(1f))
-                TrainTypeField(data.trainType, setTrainType, Modifier.weight(1f))
+                Field("Train Type", data.trainType, setTrainType, Modifier.weight(1f))
                 Field("Ticket Type", data.ticketType, setTicketType, Modifier.weight(1f))
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -210,48 +210,6 @@ private fun InputScreen(
                 Text("GENERATE TICKET", fontSize = 18.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             }
             Spacer(Modifier.height(16.dp))
-        }
-    }
-}
-
-@Composable
-private fun TrainTypeField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val options = listOf("ORDINARY", "MAIL/EXPRESS", "SUPERFAST")
-
-    Box(modifier) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            label = { Text("Train Type") },
-            singleLine = true,
-            readOnly = true,
-            modifier = Modifier.fillMaxWidth().clickable { expanded = true },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = HeaderBlue,
-                unfocusedBorderColor = Color(0xFFB7C4E2),
-                focusedLabelColor = HeaderBlue,
-                unfocusedLabelColor = TextBlue
-            )
-        )
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth(0.32f)
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = {
-                        onValueChange(option)
-                        expanded = false
-                    }
-                )
-            }
         }
     }
 }
@@ -330,7 +288,7 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
         }
 
         Column(Modifier.padding(horizontal = 12.dp, vertical = 16.dp)) {
-            Text("Thank You ${data.passengerName}, Happy Journey !", fontSize = 19.sp, color = TextBlue)
+            Text("Thank You ${data.passengerName}, Happy Journey !", fontSize = 17.sp, color = TextBlue)
             Spacer(Modifier.height(20.dp))
 
             // Ticket preview: blue top/bottom tint with the black railway-style centre panel.
@@ -492,24 +450,23 @@ private fun SideRailwayText(text: String, isHindi: Boolean) {
                 strokeWidth = 1.5f,
                 pathEffect = effect
             )
-        }
 
-        // Measure the full phrase in a tall, narrow box BEFORE rotation.
-        // This prevents the parent from clipping the rotated text and ensures
-        // the complete "INDIAN RAILWAYS" / "भारतीय रेल" is visible.
-        Text(
-            text = text,
-            color = Color.White,
-            fontSize = if (isHindi) 13.sp else 11.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier
-                .width(28.dp)
-                .height(172.dp)
-                .rotate(-90f)
-        )
+            // Draw the complete phrase directly on the canvas, then rotate it.
+            // This avoids Compose's rotated-layout clipping that was truncating
+            // the strings to "INDIAN" / "भारत" in the installed UI.
+            drawContext.canvas.nativeCanvas.save()
+            drawContext.canvas.nativeCanvas.rotate(-90f, size.width / 2f, size.height / 2f)
+            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                color = android.graphics.Color.WHITE
+                textSize = if (isHindi) 13f * density else 11f * density
+                typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD)
+                textAlign = android.graphics.Paint.Align.CENTER
+            }
+            val x = size.width / 2f
+            val y = size.height / 2f - (paint.ascent() + paint.descent()) / 2f
+            drawContext.canvas.nativeCanvas.drawText(text, x, y, paint)
+            drawContext.canvas.nativeCanvas.restore()
+        }
     }
 }
 
