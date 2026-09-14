@@ -406,15 +406,42 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             Text(sanitizeHex(data.reference).padEnd(15, '0').take(15), fontSize = 14.sp, color = TextBlue, letterSpacing = 1.sp)
             Spacer(Modifier.height(20.dp))
             Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFD4D8E4)))
-            Spacer(Modifier.height(27.dp))
-            Text("*Valid for start of journey within 3 hour or until departure of the first train.", fontSize = 13.sp, color = TextBlue)
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(24.dp))
             Text(
-                "Note: This ticket is non refundable. Ticket is stored locally on the device. Please do not change your handset or perform factory reset.",
-                fontSize = 14.sp,
-                color = Color(0xFF9E2330),
-                lineHeight = 22.sp
+                "*Valid for start of journey within 3 hour or until departure of the first train.",
+                fontSize = 12.sp,
+                color = TextBlue,
+                lineHeight = 18.sp
             )
+            Spacer(Modifier.height(16.dp))
+            // Blue tint/strip matching the ticket's top and bottom accents.
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(13.dp)
+                    .clip(RoundedCornerShape(0.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color(0xFF10A8F4), Color(0xFF148FEA), Color(0xFF10A8F4))
+                        )
+                    )
+            )
+            Spacer(Modifier.height(16.dp))
+            // Very light red notification box, matching the reference screenshot.
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFFFF0F2))
+                    .padding(horizontal = 16.dp, vertical = 11.dp)
+            ) {
+                Text(
+                    "Note: This ticket is non refundable. Ticket is stored locally on the device. Please do not change your handset or perform factory reset.",
+                    fontSize = 13.sp,
+                    color = Color(0xFF9E2330),
+                    lineHeight = 20.sp
+                )
+            }
             Spacer(Modifier.height(20.dp))
             OutlinedButton(
                 onClick = { },
@@ -464,17 +491,20 @@ private fun SideRailwayText(text: String, isHindi: Boolean) {
                 pathEffect = effect
             )
         }
+        // Keep the full bilingual railway branding inside the side rail.
+        // A fixed box + 90° rotation prevents the end of the string from
+        // being clipped by the narrow side column.
         Text(
             text = text,
             color = Color.White,
-            fontSize = if (isHindi) 14.sp else 11.sp,
+            fontSize = if (isHindi) 13.sp else 11.sp,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
             maxLines = 1,
             softWrap = false,
             modifier = Modifier
-                .width(166.dp)
-                .wrapContentHeight()
+                .width(172.dp)
+                .height(28.dp)
                 .rotate(-90f)
         )
     }
