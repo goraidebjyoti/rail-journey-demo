@@ -23,7 +23,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
@@ -385,34 +384,34 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             }
 
             Spacer(Modifier.height(14.dp))
-            Text("Journey Ticket", fontSize = 23.sp, color = TextBlue)
+            Text("Journey Ticket", fontSize = 21.sp, color = TextBlue)
             Spacer(Modifier.height(14.dp))
 
             val stationOrigin = data.origin.removeSuffix(" T").trim()
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Text(stationOrigin, fontSize = 18.sp, color = TextBlue, modifier = Modifier.weight(1f))
-                Text("—${data.distance}—", fontSize = 15.sp, color = TextBlue, textAlign = TextAlign.Center)
-                Text(data.destination, fontSize = 18.sp, color = TextBlue, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                Text(stationOrigin, fontSize = 16.sp, color = TextBlue, modifier = Modifier.weight(1f))
+                Text("—${data.distance}—", fontSize = 14.sp, color = TextBlue, textAlign = TextAlign.Center)
+                Text(data.destination, fontSize = 16.sp, color = TextBlue, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
             }
             Spacer(Modifier.height(2.dp))
-            Text("T", fontSize = 18.sp, color = TextBlue)
+            Text("T", fontSize = 16.sp, color = TextBlue)
             Spacer(Modifier.height(12.dp))
 
             InfoRow("Via", data.via, "Passenger", "${data.adults} Adult, ${data.children} Child")
             Spacer(Modifier.height(20.dp))
             InfoRow("Booked on", data.bookedOn, "*Valid Till", data.validTill)
             Spacer(Modifier.height(18.dp))
-            Text("${data.className} | ${data.trainType} | ${data.ticketType} | ₹${data.fare}", fontSize = 17.sp, color = TextBlue)
+            Text("${data.className} | ${data.trainType} | ${data.ticketType} | ₹${data.fare}", fontSize = 15.sp, color = TextBlue)
             Spacer(Modifier.height(4.dp))
-            Text(sanitizeHex(data.reference).padEnd(15, '0').take(15), fontSize = 15.sp, color = TextBlue, letterSpacing = 1.sp)
+            Text(sanitizeHex(data.reference).padEnd(15, '0').take(15), fontSize = 14.sp, color = TextBlue, letterSpacing = 1.sp)
             Spacer(Modifier.height(20.dp))
             Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFD4D8E4)))
             Spacer(Modifier.height(27.dp))
-            Text("*Valid for start of journey within 3 hour or until departure of the first train.", fontSize = 14.sp, color = TextBlue)
+            Text("*Valid for start of journey within 3 hour or until departure of the first train.", fontSize = 13.sp, color = TextBlue)
             Spacer(Modifier.height(28.dp))
             Text(
                 "Note: This ticket is non refundable. Ticket is stored locally on the device. Please do not change your handset or perform factory reset.",
-                fontSize = 16.sp,
+                fontSize = 14.sp,
                 color = Color(0xFF9E2330),
                 lineHeight = 22.sp
             )
@@ -442,36 +441,41 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
 private fun SideRailwayText(text: String, isHindi: Boolean) {
     Box(
         Modifier
-            .width(45.dp)
-            .fillMaxHeight()
-            .clipToBounds(),
+            .width(48.dp)
+            .fillMaxHeight(),
         contentAlignment = Alignment.Center
     ) {
-        androidx.compose.foundation.Canvas(
-            Modifier
-                .fillMaxHeight()
-                .width(2.dp)
-        ) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val leftX = 5f
+            val rightX = size.width - 5f
+            val effect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
             drawLine(
                 color = Color.White,
-                start = androidx.compose.ui.geometry.Offset(size.width / 2f, 0f),
-                end = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height),
-                strokeWidth = 2f,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(7f, 7f))
+                start = androidx.compose.ui.geometry.Offset(leftX, 0f),
+                end = androidx.compose.ui.geometry.Offset(leftX, size.height),
+                strokeWidth = 1.5f,
+                pathEffect = effect
+            )
+            drawLine(
+                color = Color.White,
+                start = androidx.compose.ui.geometry.Offset(rightX, 0f),
+                end = androidx.compose.ui.geometry.Offset(rightX, size.height),
+                strokeWidth = 1.5f,
+                pathEffect = effect
             )
         }
         Text(
             text = text,
             color = Color.White,
-            fontSize = if (isHindi) 16.sp else 12.sp,
+            fontSize = if (isHindi) 14.sp else 11.sp,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
             maxLines = 1,
+            softWrap = false,
             modifier = Modifier
-                .width(176.dp)
-                .background(TicketBlack)
+                .width(166.dp)
+                .wrapContentHeight()
                 .rotate(-90f)
-                .padding(horizontal = 4.dp, vertical = 0.dp)
         )
     }
 }
@@ -480,12 +484,12 @@ private fun SideRailwayText(text: String, isHindi: Boolean) {
 private fun InfoRow(leftTitle: String, leftValue: String, rightTitle: String, rightValue: String) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Column(Modifier.weight(1f)) {
-            Text(leftTitle, fontSize = 17.sp, color = TextBlue)
-            Text(leftValue, fontSize = 17.sp, color = TextBlue)
+            Text(leftTitle, fontSize = 15.sp, color = TextBlue)
+            Text(leftValue, fontSize = 15.sp, color = TextBlue)
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-            Text(rightTitle, fontSize = 17.sp, color = TextBlue, textAlign = TextAlign.End)
-            Text(rightValue, fontSize = 17.sp, color = TextBlue, textAlign = TextAlign.End)
+            Text(rightTitle, fontSize = 15.sp, color = TextBlue, textAlign = TextAlign.End)
+            Text(rightValue, fontSize = 15.sp, color = TextBlue, textAlign = TextAlign.End)
         }
     }
 }
