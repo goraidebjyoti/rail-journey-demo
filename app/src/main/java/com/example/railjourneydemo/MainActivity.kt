@@ -48,7 +48,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.min
 import kotlin.random.Random
 
-private const val FIXED_SERVICE_NO = "R28199"
+private const val DEFAULT_SERVICE_NO = "R28199"
 private const val DEFAULT_IR_NO = "19AAAGMO289C1ZC"
 
 private data class TicketData(
@@ -69,6 +69,7 @@ private data class TicketData(
     val fare: String,
     val irNumber: String,
     val journeyTicket: String,
+    val serviceNo: String,
 )
 
 private val HeaderBlue = Color(0xFF1730D9)
@@ -85,7 +86,7 @@ private val ViaBoxBg = Color(0xFFF8F7F8)
 private val NoteBg = Color(0xFFFFF0F2)
 private val TicketBody = Color(0xFFFFFBFB)
 private val GreenBg = Color(0xFFE0F2E3)
-private val GreenText = Color(0xFF2D8A46)
+private val GreenText = Color(0xFF34C264)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -117,6 +118,7 @@ private fun RailJourneyApp() {
     var fare by remember { mutableStateOf("30.00") }
     var irNumber by remember { mutableStateOf(DEFAULT_IR_NO) }
     var journeyTicket by remember { mutableStateOf("") }
+    var serviceNo by remember { mutableStateOf(DEFAULT_SERVICE_NO) }
 
     LaunchedEffect(showTicket) {
         if (showTicket) secondsLeft = 300
@@ -146,6 +148,7 @@ private fun RailJourneyApp() {
         fare = fare,
         irNumber = sanitizeAlphaNumeric15(irNumber).padEnd(15, '0'),
         journeyTicket = journeyTicket,
+        serviceNo = serviceNo,
     )
 
     MaterialTheme {
@@ -171,6 +174,7 @@ private fun RailJourneyApp() {
                     setTicketType = { ticketType = it },
                     setFare = { fare = it },
                     setIrNumber = { irNumber = sanitizeAlphaNumeric15(it) },
+                    setServiceNo = { serviceNo = it.uppercase().take(10) },
                     onGenerateTicket = {
                         journeyTicket = generateJourneyTicket()
                         showTicket = true
@@ -221,6 +225,7 @@ private fun InputScreen(
     setTicketType: (String) -> Unit,
     setFare: (String) -> Unit,
     setIrNumber: (String) -> Unit,
+    setServiceNo: (String) -> Unit,
     onGenerateTicket: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -278,13 +283,7 @@ private fun InputScreen(
                 Field("Fare (₹)", data.fare, setFare, Modifier.weight(1f))
                 Field("IR No. (15 characters)", data.irNumber, setIrNumber, Modifier.weight(1f))
             }
-            Text(
-                "Service No.  $FIXED_SERVICE_NO",
-                color = TextBlue,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(start = 4.dp)
-            )
+            Field("Service No.", data.serviceNo, setServiceNo, Modifier.fillMaxWidth())
             Spacer(Modifier.height(4.dp))
             Button(
                 onClick = onGenerateTicket,
@@ -376,11 +375,19 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
         }
 
         Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
-            Text(
-                "Thank You ${data.passengerName}, Happy Journey !",
-                fontSize = 14.sp,
-                color = TextBlue
-            )
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White)
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    "Thank You ${data.passengerName}, Happy Journey !",
+                    fontSize = 14.sp,
+                    color = TextBlue
+                )
+            }
             Spacer(Modifier.height(16.dp))
 
             DynamicTicket(data, countdown)
@@ -405,21 +412,31 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             }
         }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(8.dp))
         // QR panel has square edges and reaches both screen edges.
-        Box(
+        Column(
             Modifier
                 .fillMaxWidth()
                 .background(Color.White)
-                .padding(vertical = 22.dp, horizontal = 12.dp),
-            contentAlignment = Alignment.Center
         ) {
-            Image(
-                bitmap = qrBitmap.asImageBitmap(),
-                contentDescription = "Ticket QR code",
-                modifier = Modifier.size(250.dp)
-            )
+            TicketCutoutDivider()
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp, horizontal = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    bitmap = qrBitmap.asImageBitmap(),
+                    contentDescription = "Ticket QR code",
+                    modifier = Modifier.size(250.dp)
+                )
+            }
         }
+
+        // Thin separator so the white QR panel's bottom margin reads clearly
+        // above the "Do you know?" panel.
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFDADCE0)))
 
         // Informational panel has square edges and reaches both screen edges.
         Column(
@@ -451,7 +468,7 @@ private fun DynamicTicket(data: TicketData, countdown: String) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-            .background(Cyan)
+            .background(PageBg)
     ) {
         // Full-width blue tint above the black preview.
         Box(Modifier.fillMaxWidth().height(10.dp).background(Cyan))
@@ -493,16 +510,22 @@ private fun DynamicTicket(data: TicketData, countdown: String) {
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(2.dp))
-                Text(FIXED_SERVICE_NO, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Text(data.serviceNo, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(2.dp))
                 Text("Ticket is Non-Transferable", color = Color.White, fontSize = 13.sp)
             }
             RailwaySideBrand("भारतीय रेल", drawDividerOnRight = false)
         }
 
-        // Full-width blue tint below the black preview; the parent clip gives
-        // the same rounded outer corners as the reference ticket.
-        Box(Modifier.fillMaxWidth().height(10.dp).background(Cyan))
+        // Blue tint below the black preview is shorter than the panel and
+        // starts from the left edge; the rest of the row shows the page
+        // background instead of continuing the cyan all the way across.
+        Box(
+            Modifier
+                .fillMaxWidth(0.9f)
+                .height(10.dp)
+                .background(Cyan)
+        )
     }
 }
 
@@ -517,7 +540,7 @@ private fun RailwaySideBrand(text: String, drawDividerOnRight: Boolean) {
         Canvas(Modifier.fillMaxSize()) {
             // The reference has only two dashed lines total: one inner divider
             // on each side of the central ticket content.
-            val effect = PathEffect.dashPathEffect(floatArrayOf(11f, 6f), 0f)
+            val effect = PathEffect.dashPathEffect(floatArrayOf(18f, 8f), 0f)
             val x = if (drawDividerOnRight) size.width - 1.5f else 1.5f
             drawLine(
                 color = RailwayGrey,
@@ -535,7 +558,7 @@ private fun RailwaySideBrand(text: String, drawDividerOnRight: Boolean) {
                     color = android.graphics.Color.rgb(212, 212, 216)
                     typeface = Typeface.create("sans-serif", Typeface.BOLD)
                     textAlign = AndroidPaint.Align.CENTER
-                    textSize = 15.sp.toPx()
+                    textSize = 19.sp.toPx()
                 }
                 val maxTextWidth = size.height * 0.90f
                 val measured = paint.measureText(text)
@@ -558,61 +581,85 @@ private fun TicketBody(data: TicketData) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
             .background(TicketBody)
-            .padding(horizontal = 16.dp)
     ) {
-        Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Journey Ticket", fontSize = 20.sp, color = TextBlue, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        // All the regular field content stays inset from the card edges...
+        Column(Modifier.padding(horizontal = 16.dp)) {
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Journey Ticket",
+                    fontSize = 11.sp,
+                    color = Color(0xFF7A7B84),
+                    lineHeight = 13.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(GreenBg)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        "●  ACTIVE",
+                        color = GreenText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        style = androidx.compose.ui.text.TextStyle(
+                            shadow = androidx.compose.ui.graphics.Shadow(
+                                color = GreenText.copy(alpha = 0.55f),
+                                blurRadius = 6f
+                            )
+                        )
+                    )
+                }
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(data.journeyTicket, fontSize = 14.sp, color = Color.Black, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+            Spacer(Modifier.height(12.dp))
+
+            TwoColumnField("Source", data.origin, "Destination", data.destination, boldValues = true)
+            Spacer(Modifier.height(9.dp))
+            TwoColumnField("Distance", data.distance, "Passenger", "${data.adults} Adult, ${data.children} Child", boldValues = true)
+            Spacer(Modifier.height(9.dp))
+            TwoColumnField("Ticket Type", data.ticketType, "Train Types", data.trainType, boldValues = true)
+            Spacer(Modifier.height(9.dp))
+            TwoColumnField("Class", data.className, "Fare", "₹${data.fare}", boldValues = true)
+
+            Spacer(Modifier.height(12.dp))
             Box(
                 Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(GreenBg)
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(ViaBoxBg)
+                    .border(1.dp, Color(0xFFE3E1E3), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 14.dp, vertical = 11.dp)
             ) {
-                Text("●  ACTIVE", color = GreenText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ViaRouteIcon()
+                    Spacer(Modifier.width(7.dp))
+                    Text("Via: ${data.via}", color = TextBlue, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                }
             }
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(data.journeyTicket, fontSize = 16.sp, color = Color.Black, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-        Spacer(Modifier.height(12.dp))
 
-        TwoColumnField("Source", data.origin, "Destination", data.destination, boldValues = true)
-        Spacer(Modifier.height(9.dp))
-        TwoColumnField("Distance", data.distance, "Passenger", "${data.adults} Adult, ${data.children} Child", boldValues = true)
-        Spacer(Modifier.height(9.dp))
-        TwoColumnField("Ticket Type", data.ticketType, "Train Types", data.trainType, boldValues = true)
-        Spacer(Modifier.height(9.dp))
-        TwoColumnField("Class", data.className, "Fare", "₹${data.fare}", boldValues = true)
-
-        Spacer(Modifier.height(12.dp))
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(ViaBoxBg)
-                .border(1.dp, Color(0xFFE3E1E3), RoundedCornerShape(12.dp))
-                .padding(horizontal = 14.dp, vertical = 11.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                ViaRouteIcon()
-                Spacer(Modifier.width(7.dp))
-                Text("Via: ${data.via}", color = TextBlue, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            }
+            Spacer(Modifier.height(8.dp))
+            Text("IR:${data.irNumber}", color = TextBlue, fontSize = 13.sp, letterSpacing = 0.6.sp)
         }
 
-        Spacer(Modifier.height(8.dp))
-        Text("IR:${data.irNumber}", color = TextBlue, fontSize = 13.sp, letterSpacing = 0.6.sp)
-        Spacer(Modifier.height(8.dp))
+        // Cutout notches sit right at the card's true edges, so this divider
+        // spans the full card width rather than the inset content width.
         TicketCutoutDivider()
 
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "*Valid for start of journey within 1 hour or until departure of the first train.",
-            fontSize = 12.sp,
-            color = TextBlue,
-            lineHeight = 18.sp
-        )
-        Spacer(Modifier.height(16.dp))
+        Column(Modifier.padding(horizontal = 16.dp)) {
+            Text(
+                "*Valid for start of journey within 1 hour or until departure of the first train.",
+                fontSize = 12.sp,
+                color = TextBlue,
+                lineHeight = 18.sp
+            )
+            Spacer(Modifier.height(16.dp))
+        }
+
+        // Blue border below "Valid for..." spans edge to edge of the white card.
         Box(
             Modifier
                 .fillMaxWidth()
@@ -664,11 +711,11 @@ private fun TwoColumnField(leftTitle: String, leftValue: String, rightTitle: Str
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Column(Modifier.weight(1f)) {
             Text(leftTitle, fontSize = 11.sp, color = Color(0xFF7A7B84), lineHeight = 13.sp)
-            Text(leftValue, fontSize = 14.sp, color = TextBlue, fontWeight = if (boldValues) FontWeight.Bold else FontWeight.Normal, lineHeight = 17.sp)
+            Text(leftValue, fontSize = 14.sp, color = Color.Black, fontWeight = if (boldValues) FontWeight.Bold else FontWeight.Normal, lineHeight = 17.sp)
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
             Text(rightTitle, fontSize = 11.sp, color = Color(0xFF7A7B84), textAlign = TextAlign.End, lineHeight = 13.sp)
-            Text(rightValue, fontSize = 14.sp, color = TextBlue, fontWeight = if (boldValues) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.End, lineHeight = 17.sp)
+            Text(rightValue, fontSize = 14.sp, color = Color.Black, fontWeight = if (boldValues) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.End, lineHeight = 17.sp)
         }
     }
 }
@@ -678,12 +725,12 @@ private fun TicketCutoutDivider() {
     Canvas(
         Modifier
             .fillMaxWidth()
-            .height(24.dp)
+            .height(14.dp)
     ) {
-        val r = 11.dp.toPx()
+        val r = 6.dp.toPx()
         val cy = size.height / 2f
-        // Only the inner half of each circle is visible, creating the shallow
-        // ticket notches shown at both edges of the reference ticket.
+        // Only the inner half of each circle is visible, creating the small,
+        // subtle ticket notches right at both true edges of the white card.
         drawCircle(
             color = PageBg,
             radius = r,
@@ -694,12 +741,12 @@ private fun TicketCutoutDivider() {
             radius = r,
             center = Offset(size.width, cy)
         )
-        val effect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
+        val effect = PathEffect.dashPathEffect(floatArrayOf(5f, 4f), 0f)
         drawLine(
-            color = Color(0xFFC7CBD4),
+            color = Color(0xFFD7D9E0),
             start = Offset(r, cy),
             end = Offset(size.width - r, cy),
-            strokeWidth = 1.1f,
+            strokeWidth = 1f,
             pathEffect = effect
         )
     }
@@ -708,7 +755,7 @@ private fun TicketCutoutDivider() {
 private fun buildQrPayload(data: TicketData): String = buildString {
     appendLine("RAIL JOURNEY TICKET")
     appendLine("Journey Ticket=${data.journeyTicket}")
-    appendLine("Service No=$FIXED_SERVICE_NO")
+    appendLine("Service No=${data.serviceNo}")
     appendLine("Passenger=${data.passengerName}")
     appendLine("Mobile=${data.mobile}")
     appendLine("Source=${data.origin}")
