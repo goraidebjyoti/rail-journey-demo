@@ -494,8 +494,20 @@ private fun RailwaySideBrand(text: String) {
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val effect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
-            drawLine(Color.White, Offset(6f, 0f), Offset(6f, size.height), 1.2f, effect)
-            drawLine(Color.White, Offset(size.width - 6f, 0f), Offset(size.width - 6f, size.height), 1.2f, effect)
+            drawLine(
+                color = Color.White,
+                start = Offset(6f, 0f),
+                end = Offset(6f, size.height),
+                strokeWidth = 1.2f,
+                pathEffect = effect
+            )
+            drawLine(
+                color = Color.White,
+                start = Offset(size.width - 6f, 0f),
+                end = Offset(size.width - 6f, size.height),
+                strokeWidth = 1.2f,
+                pathEffect = effect
+            )
             drawIntoCanvas { canvas ->
                 val native = canvas.nativeCanvas
                 native.save()
