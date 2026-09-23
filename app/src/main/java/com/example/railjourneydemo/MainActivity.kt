@@ -864,95 +864,11 @@ private fun TicketCutoutDivider() {
     Canvas(
         Modifier
             .fillMaxWidth()
-            .height(30.dp)
-    ) {
-        val r = 13.dp.toPx()
-        val cy = size.height / 2f
-
-        // A circle centered on each outer edge leaves only a semicircular
-        // notch inside the white ticket body, matching the real ticket.
-        drawCircle(
-            color = PageBg,
-            radius = r,
-            center = Offset(0f, cy)
-        )
-        drawCircle(
-            color = PageBg,
-            radius = r,
-            center = Offset(size.width, cy)
-        )
-
-        val effect = PathEffect.dashPathEffect(floatArrayOf(9f, 6f), 0f)
-        drawLine(
-            color = Color(0xFFC7CBD4),
-            start = Offset(r, cy),
-            end = Offset(size.width - r, cy),
-            strokeWidth = 1.1f,
-            pathEffect = effect
-        )
-    }
-}
-
-@Composable
-private fun TicketNote() {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(11.dp))
-            .background(NoteBg)
-            .padding(horizontal = 14.dp, vertical = 11.dp)
-    ) {
-        Text(
-            "Note: This ticket is non refundable. Ticket is stored locally on the device. Please do not change your handset or perform factory reset.",
-            fontSize = 13.sp,
-            color = Color(0xFFD34F59),
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp
-        )
-    }
-}
-
-@Composable
-private fun ViaRouteIcon() {
-    Canvas(Modifier.size(18.dp)) {
-        val stroke = 1.7.dp.toPx()
-        val c = TextBlue
-        // Small branching route/track mark inspired by the reference icon.
-        drawLine(c, Offset(2f, size.height * 0.66f), Offset(size.width * 0.48f, size.height * 0.66f), strokeWidth = stroke)
-        drawLine(c, Offset(size.width * 0.48f, size.height * 0.66f), Offset(size.width * 0.80f, size.height * 0.38f), strokeWidth = stroke)
-        drawLine(c, Offset(size.width * 0.48f, size.height * 0.66f), Offset(size.width * 0.80f, size.height * 0.84f), strokeWidth = stroke)
-        drawCircle(c, radius = 1.8.dp.toPx(), center = Offset(2f, size.height * 0.66f))
-        drawCircle(c, radius = 1.8.dp.toPx(), center = Offset(size.width * 0.80f, size.height * 0.38f))
-        drawCircle(c, radius = 1.8.dp.toPx(), center = Offset(size.width * 0.80f, size.height * 0.84f))
-    }
-}
-
-@Composable
-private fun TwoColumnField(leftTitle: String, leftValue: String, rightTitle: String, rightValue: String, boldValues: Boolean) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-        Column(Modifier.weight(1f)) {
-            Text(leftTitle, fontSize = 11.sp, color = Color(0xFF7A7B84), lineHeight = 13.sp)
-            Text(leftValue, fontSize = 14.sp, color = TextBlue, fontWeight = if (boldValues) FontWeight.Bold else FontWeight.Normal, lineHeight = 17.sp)
-        }
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-            Text(rightTitle, fontSize = 11.sp, color = Color(0xFF7A7B84), textAlign = TextAlign.End, lineHeight = 13.sp)
-            Text(rightValue, fontSize = 14.sp, color = TextBlue, fontWeight = if (boldValues) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.End, lineHeight = 17.sp)
-        }
-    }
-}
-
-@Composable
-private fun TicketCutoutDivider() {
-    Canvas(
-        Modifier
-            .fillMaxWidth()
             .height(24.dp)
     ) {
         val r = 11.dp.toPx()
         val cy = size.height / 2f
-        // Only the inner half of each circle is visible, creating the shallow
-        // ticket notches shown at both edges of the reference ticket.
+        // Only the inner half of each circle is visible, creating shallow ticket notches.
         drawCircle(
             color = PageBg,
             radius = r,
