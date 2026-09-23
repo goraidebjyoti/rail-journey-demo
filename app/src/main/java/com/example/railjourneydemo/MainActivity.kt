@@ -386,6 +386,10 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             DynamicTicket(data, countdown)
             TicketBody(data)
 
+            // The refund note is a separate element, outside the journey-ticket card.
+            Spacer(Modifier.height(14.dp))
+            TicketNote()
+
             Spacer(Modifier.height(16.dp))
             OutlinedButton(
                 onClick = { },
@@ -399,47 +403,45 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             ) {
                 Text("Book Connecting Journey", fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
-
-            Spacer(Modifier.height(18.dp))
-                // QR and the informational panel intentionally extend to the physical
-                // screen edges, matching the reference rather than the inset ticket body.
-            }
-
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(vertical = 22.dp, horizontal = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    bitmap = qrBitmap.asImageBitmap(),
-                    contentDescription = "Ticket QR code",
-                    modifier = Modifier.size(250.dp)
-                )
-            }
-
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFFF4F4F7))
-                    .padding(horizontal = 22.dp, vertical = 18.dp)
-            ) {
-                Text("Do you know?", fontSize = 17.sp, color = Color.Black, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                Text("IR recovers only 57% of cost of travel on an average.", fontSize = 13.sp, color = Color.DarkGray, lineHeight = 18.sp)
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    "This ticket is booked on a personal user ID. It’s sale/purchase is an offence u/s 143 of the Railways Act, 1989",
-                    fontSize = 13.sp,
-                    color = Color.DarkGray,
-                    lineHeight = 18.sp
-                )
-                Spacer(Modifier.height(10.dp))
-                Text("For enquiry and integrated railway helpline, please dial 139.", fontSize = 13.sp, color = Color.DarkGray, lineHeight = 18.sp)
-            }
-            Spacer(Modifier.height(18.dp))
         }
+
+        Spacer(Modifier.height(18.dp))
+        // QR panel has square edges and reaches both screen edges.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(vertical = 22.dp, horizontal = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                bitmap = qrBitmap.asImageBitmap(),
+                contentDescription = "Ticket QR code",
+                modifier = Modifier.size(250.dp)
+            )
+        }
+
+        // Informational panel has square edges and reaches both screen edges.
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFF4F4F7))
+                .padding(horizontal = 22.dp, vertical = 18.dp)
+        ) {
+            Text("Do you know?", fontSize = 17.sp, color = Color.Black, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text("IR recovers only 57% of cost of travel on an average.", fontSize = 13.sp, color = Color.DarkGray, lineHeight = 18.sp)
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "This ticket is booked on a personal user ID. It’s sale/purchase is an offence u/s 143 of the Railways Act, 1989",
+                fontSize = 13.sp,
+                color = Color.DarkGray,
+                lineHeight = 18.sp
+            )
+            Spacer(Modifier.height(10.dp))
+            Text("For enquiry and integrated railway helpline, please dial 139.", fontSize = 13.sp, color = Color.DarkGray, lineHeight = 18.sp)
+        }
+        Spacer(Modifier.height(18.dp))
     }
 }
 
@@ -618,24 +620,27 @@ private fun TicketBody(data: TicketData) {
                 .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
                 .background(Brush.horizontalGradient(listOf(Cyan, Color(0xFF1598ED), Cyan)))
         )
-        Spacer(Modifier.height(14.dp))
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(11.dp))
-                .background(NoteBg)
-                .padding(horizontal = 14.dp, vertical = 11.dp)
-        ) {
-            Text(
-                "Note: This ticket is non refundable. Ticket is stored locally on the device. Please do not change your handset or perform factory reset.",
-                fontSize = 13.sp,
-                color = Color(0xFFD34F59),
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp
-            )
-        }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(2.dp))
+    }
+}
+
+@Composable
+private fun TicketNote() {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(11.dp))
+            .background(NoteBg)
+            .padding(horizontal = 14.dp, vertical = 11.dp)
+    ) {
+        Text(
+            "Note: This ticket is non refundable. Ticket is stored locally on the device. Please do not change your handset or perform factory reset.",
+            fontSize = 13.sp,
+            color = Color(0xFFD34F59),
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            lineHeight = 20.sp
+        )
     }
 }
 
