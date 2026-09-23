@@ -77,7 +77,11 @@ private val TextBlue = Color(0xFF303C68)
 private val TicketBlack = Color(0xFF17171C)
 private val Yellow = Color(0xFFFFF52D)
 private val RedOrange = Color(0xFFFF4A28)
+private val DateOrange = Color(0xFFFFA21A)
 private val Cyan = Color(0xFF11A7F1)
+private val RailwayGrey = Color(0xFFD4D4D8)
+private val BookingGrey = Color(0xFFB9BAC1)
+private val ViaBoxBg = Color(0xFFF8F7F8)
 private val NoteBg = Color(0xFFFFF0F2)
 private val TicketBody = Color(0xFFFFFBFB)
 private val GreenBg = Color(0xFFE0F2E3)
@@ -374,7 +378,7 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
         Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
             Text(
                 "Thank You ${data.passengerName}, Happy Journey !",
-                fontSize = 15.sp,
+                fontSize = 14.sp,
                 color = TextBlue
             )
             Spacer(Modifier.height(16.dp))
@@ -446,19 +450,20 @@ private fun DynamicTicket(data: TicketData, countdown: String) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(
-                Brush.verticalGradient(listOf(Cyan, Color(0xFF1393E9), Cyan))
-            )
-            .padding(vertical = 9.dp)
+            .background(Cyan)
     ) {
+        // Full-width blue tint above the black preview.
+        Box(Modifier.fillMaxWidth().height(11.dp).background(Cyan))
+
         Row(
             Modifier
                 .fillMaxWidth()
-                .height(186.dp)
+                .height(190.dp)
                 .background(TicketBlack),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RailwaySideBrand("INDIAN RAILWAYS")
+            // Exactly one dashed divider on each side of the black panel.
+            RailwaySideBrand("INDIAN RAILWAYS", drawDividerOnRight = true)
             Column(
                 Modifier
                     .weight(1f)
@@ -467,25 +472,41 @@ private fun DynamicTicket(data: TicketData, countdown: String) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text("Dynamic preview will close in", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(2.dp))
-                Text(countdown, color = RedOrange, fontSize = 42.sp, fontWeight = FontWeight.ExtraBold)
+                Text(
+                    "Dynamic preview will close in",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
                 Spacer(Modifier.height(1.dp))
-                Text("Ticket Booking Date & Time", color = Color.White, fontSize = 13.sp)
+                Text(countdown, color = RedOrange, fontSize = 44.sp, fontWeight = FontWeight.ExtraBold)
+                Spacer(Modifier.height(0.dp))
+                Text("Ticket Booking Date & Time", color = BookingGrey, fontSize = 13.sp)
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    data.bookingDateTime,
+                    color = DateOrange,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
                 Spacer(Modifier.height(2.dp))
-                Text(data.bookingDateTime, color = Yellow, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(5.dp))
                 Text(FIXED_SERVICE_NO, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                Spacer(Modifier.height(5.dp))
+                Spacer(Modifier.height(2.dp))
                 Text("Ticket is Non-Transferable", color = Color.White, fontSize = 13.sp)
             }
-            RailwaySideBrand("भारतीय रेल")
+            RailwaySideBrand("भारतीय रेल", drawDividerOnRight = false)
         }
+
+        // Full-width blue tint below the black preview; the parent clip gives
+        // the same rounded outer corners as the reference ticket.
+        Box(Modifier.fillMaxWidth().height(11.dp).background(Cyan))
     }
 }
 
 @Composable
-private fun RailwaySideBrand(text: String) {
+private fun RailwaySideBrand(text: String, drawDividerOnRight: Boolean) {
     Box(
         Modifier
             .width(48.dp)
@@ -493,39 +514,36 @@ private fun RailwaySideBrand(text: String) {
         contentAlignment = Alignment.Center
     ) {
         Canvas(Modifier.fillMaxSize()) {
-            val effect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
+            // The reference has only two dashed lines total: one inner divider
+            // on each side of the central ticket content.
+            val effect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)
+            val x = if (drawDividerOnRight) size.width - 1.5f else 1.5f
             drawLine(
-                color = Color.White,
-                start = Offset(6f, 0f),
-                end = Offset(6f, size.height),
+                color = RailwayGrey,
+                start = Offset(x, 0f),
+                end = Offset(x, size.height),
                 strokeWidth = 1.2f,
                 pathEffect = effect
             )
-            drawLine(
-                color = Color.White,
-                start = Offset(size.width - 6f, 0f),
-                end = Offset(size.width - 6f, size.height),
-                strokeWidth = 1.2f,
-                pathEffect = effect
-            )
+
             drawIntoCanvas { canvas ->
                 val native = canvas.nativeCanvas
                 native.save()
                 native.rotate(-90f, size.width / 2f, size.height / 2f)
                 val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
-                    color = android.graphics.Color.WHITE
+                    color = android.graphics.Color.rgb(212, 212, 216)
                     typeface = Typeface.create("sans-serif", Typeface.BOLD)
                     textAlign = AndroidPaint.Align.CENTER
-                    textSize = 12.sp.toPx()
+                    textSize = 13.sp.toPx()
                 }
-                val maxTextWidth = size.height * 0.86f
+                val maxTextWidth = size.height * 0.88f
                 val measured = paint.measureText(text)
                 if (measured > maxTextWidth) {
                     paint.textSize *= (maxTextWidth / measured)
                 }
-                val x = size.width / 2f
-                val y = size.height / 2f - (paint.ascent() + paint.descent()) / 2f
-                native.drawText(text, x, y, paint)
+                val xText = size.width / 2f
+                val yText = size.height / 2f - (paint.ascent() + paint.descent()) / 2f
+                native.drawText(text, xText, yText, paint)
                 native.restore()
             }
         }
@@ -569,16 +587,20 @@ private fun TicketBody(data: TicketData) {
         Box(
             Modifier
                 .fillMaxWidth()
-                .border(1.dp, Color(0xFFE2E2E7), RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(12.dp))
+                .background(ViaBoxBg)
+                .border(1.dp, Color(0xFFE3E1E3), RoundedCornerShape(12.dp))
                 .padding(horizontal = 14.dp, vertical = 11.dp)
         ) {
-            Column {
-                Text("↝ Via: ${data.via}", color = TextBlue, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Spacer(Modifier.height(10.dp))
-                Text("IR:${data.irNumber}", color = TextBlue, fontSize = 13.sp, letterSpacing = 0.6.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ViaRouteIcon()
+                Spacer(Modifier.width(7.dp))
+                Text("Via: ${data.via}", color = TextBlue, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             }
         }
 
+        Spacer(Modifier.height(8.dp))
+        Text("IR:${data.irNumber}", color = TextBlue, fontSize = 13.sp, letterSpacing = 0.6.sp)
         Spacer(Modifier.height(8.dp))
         TicketCutoutDivider()
 
@@ -608,11 +630,26 @@ private fun TicketBody(data: TicketData) {
             Text(
                 "Note: This ticket is non refundable. Ticket is stored locally on the device. Please do not change your handset or perform factory reset.",
                 fontSize = 13.sp,
-                color = Color(0xFF9E2330),
+                color = Color(0xFFD34F59),
                 lineHeight = 20.sp
             )
         }
         Spacer(Modifier.height(14.dp))
+    }
+}
+
+@Composable
+private fun ViaRouteIcon() {
+    Canvas(Modifier.size(18.dp)) {
+        val stroke = 1.7.dp.toPx()
+        val c = TextBlue
+        // Small branching route/track mark inspired by the reference icon.
+        drawLine(c, Offset(2f, size.height * 0.66f), Offset(size.width * 0.48f, size.height * 0.66f), strokeWidth = stroke)
+        drawLine(c, Offset(size.width * 0.48f, size.height * 0.66f), Offset(size.width * 0.80f, size.height * 0.38f), strokeWidth = stroke)
+        drawLine(c, Offset(size.width * 0.48f, size.height * 0.66f), Offset(size.width * 0.80f, size.height * 0.84f), strokeWidth = stroke)
+        drawCircle(c, radius = 1.8.dp.toPx(), center = Offset(2f, size.height * 0.66f))
+        drawCircle(c, radius = 1.8.dp.toPx(), center = Offset(size.width * 0.80f, size.height * 0.38f))
+        drawCircle(c, radius = 1.8.dp.toPx(), center = Offset(size.width * 0.80f, size.height * 0.84f))
     }
 }
 
@@ -635,19 +672,35 @@ private fun TicketCutoutDivider() {
     Row(
         Modifier
             .fillMaxWidth()
-            .height(26.dp),
+            .height(28.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Canvas(Modifier.fillMaxSize()) {
-            // Side cut-outs: page background punches into the lower ticket body.
-            drawCircle(PageBg, 13.dp.toPx(), Offset(0f, size.height / 2f))
-            drawCircle(PageBg, 13.dp.toPx(), Offset(size.width, size.height / 2f))
+            val r = 14.dp.toPx()
+            val cy = size.height / 2f
+            // True inward semicircular ticket notches (not full circular dots).
+            drawArc(
+                color = PageBg,
+                startAngle = -90f,
+                sweepAngle = 180f,
+                useCenter = true,
+                topLeft = Offset(-r, cy - r),
+                size = androidx.compose.ui.geometry.Size(r * 2f, r * 2f)
+            )
+            drawArc(
+                color = PageBg,
+                startAngle = 90f,
+                sweepAngle = 180f,
+                useCenter = true,
+                topLeft = Offset(size.width - r, cy - r),
+                size = androidx.compose.ui.geometry.Size(r * 2f, r * 2f)
+            )
             val effect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f), 0f)
             drawLine(
                 color = Color(0xFFBFC4D0),
-                start = Offset(13.dp.toPx(), size.height / 2f),
-                end = Offset(size.width - 13.dp.toPx(), size.height / 2f),
-                strokeWidth = 1.2f,
+                start = Offset(r, cy),
+                end = Offset(size.width - r, cy),
+                strokeWidth = 1.1f,
                 pathEffect = effect
             )
         }
