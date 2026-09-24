@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
@@ -53,6 +54,7 @@ import com.google.zxing.MultiFormatWriter
 import kotlinx.coroutines.delay
 import kotlin.math.min
 import kotlin.random.Random
+import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -129,8 +131,11 @@ private data class TicketData(
     val serviceNo: String,
 )
 
-/** A saved passenger's re-usable booking details (timing fields are intentionally excluded). */
-private data class PassengerProfile(
+/** A saved journey's re-usable booking details (timing fields are intentionally
+ * excluded, since those always default to "now"). One passenger can have several
+ * of these — one per distinct route — since the id is passenger + route. */
+private data class SavedJourney(
+    val id: String,
     val passengerName: String,
     val mobile: String,
     val origin: String,
@@ -145,67 +150,89 @@ private data class PassengerProfile(
     val fare: String,
     val irNumber: String,
     val serviceNo: String,
-)
+) {
+    val label: String get() = "$passengerName  —  $origin → $destination"
+}
 
 private const val PROFILES_PREFS = "rail_journey_profiles"
-private const val PROFILE_NAMES_KEY = "saved_passenger_names"
+private const val SAVED_JOURNEYS_KEY = "saved_journeys_json"
 
-private fun loadSavedPassengerNames(context: Context): List<String> {
-    val prefs = context.getSharedPreferences(PROFILES_PREFS, Context.MODE_PRIVATE)
-    return (prefs.getStringSet(PROFILE_NAMES_KEY, emptySet()) ?: emptySet()).sorted()
-}
+/** Same passenger + same route overwrites the existing saved entry; a different
+ * route for the same passenger is stored as an additional, separate entry —
+ * this is how one passenger ends up with multiple saved journeys. */
+private fun savedJourneyId(passengerName: String, origin: String, destination: String): String =
+    "${passengerName.trim().lowercase()}|${origin.trim().uppercase()}|${destination.trim().uppercase()}"
 
-private fun saveProfile(context: Context, profile: PassengerProfile) {
-    val trimmedName = profile.passengerName.trim()
-    if (trimmedName.isEmpty()) return
+private fun loadSavedJourneys(context: Context): List<SavedJourney> {
     val prefs = context.getSharedPreferences(PROFILES_PREFS, Context.MODE_PRIVATE)
-    val json = JSONObject().apply {
-        put("passengerName", trimmedName)
-        put("mobile", profile.mobile)
-        put("origin", profile.origin)
-        put("distance", profile.distance)
-        put("destination", profile.destination)
-        put("via", profile.via)
-        put("adults", profile.adults)
-        put("children", profile.children)
-        put("className", profile.className)
-        put("trainType", profile.trainType)
-        put("ticketType", profile.ticketType)
-        put("fare", profile.fare)
-        put("irNumber", profile.irNumber)
-        put("serviceNo", profile.serviceNo)
-    }
-    val names = (loadSavedPassengerNames(context) + trimmedName).toSet()
-    prefs.edit()
-        .putString("profile_${trimmedName.lowercase()}", json.toString())
-        .putStringSet(PROFILE_NAMES_KEY, names)
-        .apply()
-}
-
-private fun loadProfile(context: Context, name: String): PassengerProfile? {
-    val prefs = context.getSharedPreferences(PROFILES_PREFS, Context.MODE_PRIVATE)
-    val raw = prefs.getString("profile_${name.trim().lowercase()}", null) ?: return null
+    val raw = prefs.getString(SAVED_JOURNEYS_KEY, null) ?: return emptyList()
     return try {
-        val json = JSONObject(raw)
-        PassengerProfile(
-            passengerName = json.optString("passengerName"),
-            mobile = json.optString("mobile"),
-            origin = json.optString("origin"),
-            distance = json.optString("distance"),
-            destination = json.optString("destination"),
-            via = json.optString("via"),
-            adults = json.optString("adults"),
-            children = json.optString("children"),
-            className = json.optString("className"),
-            trainType = json.optString("trainType"),
-            ticketType = json.optString("ticketType"),
-            fare = json.optString("fare"),
-            irNumber = json.optString("irNumber"),
-            serviceNo = json.optString("serviceNo"),
-        )
+        val array = JSONArray(raw)
+        (0 until array.length()).mapNotNull { i ->
+            val json = array.optJSONObject(i) ?: return@mapNotNull null
+            SavedJourney(
+                id = json.optString("id"),
+                passengerName = json.optString("passengerName"),
+                mobile = json.optString("mobile"),
+                origin = json.optString("origin"),
+                distance = json.optString("distance"),
+                destination = json.optString("destination"),
+                via = json.optString("via"),
+                adults = json.optString("adults"),
+                children = json.optString("children"),
+                className = json.optString("className"),
+                trainType = json.optString("trainType"),
+                ticketType = json.optString("ticketType"),
+                fare = json.optString("fare"),
+                irNumber = json.optString("irNumber"),
+                serviceNo = json.optString("serviceNo"),
+            )
+        }.sortedBy { it.label.lowercase() }
     } catch (e: Exception) {
-        null
+        emptyList()
     }
+}
+
+private fun persistSavedJourneys(context: Context, journeys: List<SavedJourney>) {
+    val array = JSONArray()
+    journeys.forEach { j ->
+        array.put(
+            JSONObject().apply {
+                put("id", j.id)
+                put("passengerName", j.passengerName)
+                put("mobile", j.mobile)
+                put("origin", j.origin)
+                put("distance", j.distance)
+                put("destination", j.destination)
+                put("via", j.via)
+                put("adults", j.adults)
+                put("children", j.children)
+                put("className", j.className)
+                put("trainType", j.trainType)
+                put("ticketType", j.ticketType)
+                put("fare", j.fare)
+                put("irNumber", j.irNumber)
+                put("serviceNo", j.serviceNo)
+            }
+        )
+    }
+    val prefs = context.getSharedPreferences(PROFILES_PREFS, Context.MODE_PRIVATE)
+    prefs.edit().putString(SAVED_JOURNEYS_KEY, array.toString()).apply()
+}
+
+/** Saves [journey], returning the refreshed list. A journey with the same
+ * passenger + route replaces the existing one instead of duplicating it. */
+private fun saveJourney(context: Context, journey: SavedJourney): List<SavedJourney> {
+    if (journey.passengerName.trim().isEmpty()) return loadSavedJourneys(context)
+    val updated = loadSavedJourneys(context).filterNot { it.id == journey.id } + journey
+    persistSavedJourneys(context, updated)
+    return loadSavedJourneys(context)
+}
+
+private fun deleteJourney(context: Context, id: String): List<SavedJourney> {
+    val updated = loadSavedJourneys(context).filterNot { it.id == id }
+    persistSavedJourneys(context, updated)
+    return updated
 }
 
 private val HeaderBlue = Color(0xFF1730D9)
@@ -216,7 +243,7 @@ private val Yellow = Color(0xFFFFF52D)
 private val RedOrange = Color(0xFFFF4A28)
 private val DateOrange = Color(0xFFFFA21A)
 private val Cyan = Color(0xFF67CDE6)
-private val RailwayGrey = Color(0xFFD4D4D8)
+private val RailwayGrey = Color(0xFF9A9AA5)
 private val BookingGrey = Color(0xFFB9BAC1)
 private val ViaBoxBg = Color(0xFFF8F7F8)
 private val NoteBg = Color(0xFFFFF0F2)
@@ -258,7 +285,7 @@ private fun RailJourneyApp() {
     var journeyTicket by remember { mutableStateOf("") }
     var serviceNo by remember { mutableStateOf(DEFAULT_SERVICE_NO) }
 
-    var savedNames by remember { mutableStateOf(loadSavedPassengerNames(context)) }
+    var savedJourneys by remember { mutableStateOf(loadSavedJourneys(context)) }
 
     LaunchedEffect(showTicket) {
         if (showTicket) secondsLeft = 300
@@ -300,7 +327,7 @@ private fun RailJourneyApp() {
             } else {
                 InputScreen(
                     data = data,
-                    savedNames = savedNames,
+                    savedJourneys = savedJourneys,
                     setPassengerName = { passengerName = it },
                     setMobile = { mobile = it.filter(Char::isDigit).take(15) },
                     setOrigin = { origin = it.uppercase() },
@@ -326,29 +353,31 @@ private fun RailJourneyApp() {
                     onFareFocusLost = { fare = formatFare(fare) },
                     setIrNumber = { irNumber = sanitizeAlphaNumeric15(it) },
                     setServiceNo = { serviceNo = it.uppercase().take(10) },
-                    onLoadProfile = { name ->
-                        loadProfile(context, name)?.let { p ->
-                            passengerName = p.passengerName
-                            mobile = p.mobile
-                            origin = p.origin
-                            distance = p.distance
-                            destination = p.destination
-                            via = p.via
-                            adults = p.adults
-                            children = p.children
-                            className = p.className
-                            trainType = p.trainType
-                            ticketType = p.ticketType
-                            fare = p.fare
-                            irNumber = p.irNumber
-                            serviceNo = p.serviceNo
+                    onLoadJourney = { id ->
+                        savedJourneys.find { it.id == id }?.let { j ->
+                            passengerName = j.passengerName
+                            mobile = j.mobile
+                            origin = j.origin
+                            distance = j.distance
+                            destination = j.destination
+                            via = j.via
+                            adults = j.adults
+                            children = j.children
+                            className = j.className
+                            trainType = j.trainType
+                            ticketType = j.ticketType
+                            fare = j.fare
+                            irNumber = j.irNumber
+                            serviceNo = j.serviceNo
                         }
                     },
-                    onSaveProfile = {
-                        saveProfile(
+                    onSaveJourney = {
+                        fare = formatFare(fare)
+                        savedJourneys = saveJourney(
                             context,
-                            PassengerProfile(
-                                passengerName = passengerName,
+                            SavedJourney(
+                                id = savedJourneyId(passengerName, origin, destination),
+                                passengerName = passengerName.trim(),
                                 mobile = mobile,
                                 origin = origin,
                                 distance = distance,
@@ -359,12 +388,14 @@ private fun RailJourneyApp() {
                                 className = className,
                                 trainType = trainType,
                                 ticketType = ticketType,
-                                fare = formatFare(fare).also { fare = it },
+                                fare = fare,
                                 irNumber = irNumber,
                                 serviceNo = serviceNo,
                             )
                         )
-                        savedNames = loadSavedPassengerNames(context)
+                    },
+                    onDeleteJourney = { id ->
+                        savedJourneys = deleteJourney(context, id)
                     },
                     onGenerateTicket = {
                         fare = formatFare(fare)
@@ -401,7 +432,7 @@ private fun generateJourneyTicket(): String {
 @Composable
 private fun InputScreen(
     data: TicketData,
-    savedNames: List<String>,
+    savedJourneys: List<SavedJourney>,
     setPassengerName: (String) -> Unit,
     setMobile: (String) -> Unit,
     setOrigin: (String) -> Unit,
@@ -420,8 +451,9 @@ private fun InputScreen(
     onFareFocusLost: () -> Unit,
     setIrNumber: (String) -> Unit,
     setServiceNo: (String) -> Unit,
-    onLoadProfile: (String) -> Unit,
-    onSaveProfile: () -> Unit,
+    onLoadJourney: (String) -> Unit,
+    onSaveJourney: () -> Unit,
+    onDeleteJourney: (String) -> Unit,
     onGenerateTicket: () -> Unit,
 ) {
     Column(
@@ -455,11 +487,12 @@ private fun InputScreen(
             Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            if (savedNames.isNotEmpty()) {
-                SectionCard(title = "Saved Passengers", icon = Icons.Default.History) {
+            if (savedJourneys.isNotEmpty()) {
+                SectionCard(title = "Saved Journeys", icon = Icons.Default.History) {
                     var expanded by remember { mutableStateOf(false) }
                     Text(
-                        "Quickly fill in every field from a passenger you've saved before.",
+                        "A passenger can have several saved journeys — one per route. " +
+                            "Pick one below to fill in every field instantly.",
                         fontSize = 12.sp,
                         color = Color(0xFF7A7B84)
                     )
@@ -468,21 +501,36 @@ private fun InputScreen(
                         onExpandedChange = { expanded = !expanded }
                     ) {
                         OutlinedTextField(
-                            value = "Select a saved passenger",
+                            value = "Select a saved journey",
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Load saved passenger") },
+                            label = { Text("Load saved journey") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                             colors = fieldColors()
                         )
                         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                            savedNames.forEach { name ->
+                            savedJourneys.forEach { journey ->
                                 DropdownMenuItem(
-                                    text = { Text(name) },
+                                    text = { Text(journey.label, fontSize = 13.sp) },
                                     onClick = {
-                                        onLoadProfile(name)
+                                        onLoadJourney(journey.id)
                                         expanded = false
+                                    },
+                                    trailingIcon = {
+                                        IconButton(
+                                            onClick = {
+                                                onDeleteJourney(journey.id)
+                                            },
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Delete saved journey",
+                                                tint = Color(0xFFB3261E),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
                                 )
                             }
@@ -555,7 +603,7 @@ private fun InputScreen(
             }
 
             OutlinedButton(
-                onClick = onSaveProfile,
+                onClick = onSaveJourney,
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(14.dp),
                 border = androidx.compose.foundation.BorderStroke(1.4.dp, HeaderBlue),
@@ -563,7 +611,7 @@ private fun InputScreen(
             ) {
                 Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Save Passenger Details", fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                Text("Save This Journey", fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
 
             Button(
@@ -768,7 +816,7 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 2.dp, horizontal = 12.dp),
+                    .padding(top = 0.dp, bottom = 6.dp, start = 12.dp, end = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
@@ -780,11 +828,12 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
         }
 
         // Soft shadow-like band so the white QR panel's bottom margin reads
-        // clearly above the "Do you know?" panel.
+        // clearly above the "Do you know?" panel — a little more breathing
+        // room than a bare divider line.
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(6.dp)
+                .height(10.dp)
                 .background(Brush.verticalGradient(listOf(Color(0xFFD7D9DE), Color.White)))
         )
 
@@ -797,16 +846,16 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
         ) {
             Text("Do you know?", fontSize = 17.sp, color = Color.Black, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
-            Text("IR recovers only 57% of cost of travel on an average.", fontSize = 13.sp, color = Color.DarkGray, lineHeight = 18.sp)
+            Text("IR recovers only 57% of cost of travel on an average.", fontSize = 17.sp, color = Color.DarkGray, lineHeight = 23.sp)
             Spacer(Modifier.height(10.dp))
             Text(
                 "This ticket is booked on a personal user ID. It’s sale/purchase is an offence u/s 143 of the Railways Act, 1989",
-                fontSize = 13.sp,
+                fontSize = 17.sp,
                 color = Color.DarkGray,
-                lineHeight = 18.sp
+                lineHeight = 23.sp
             )
             Spacer(Modifier.height(10.dp))
-            Text("For enquiry and integrated railway helpline, please dial 139.", fontSize = 13.sp, color = Color.DarkGray, lineHeight = 18.sp)
+            Text("For enquiry and integrated railway helpline, please dial 139.", fontSize = 17.sp, color = Color.DarkGray, lineHeight = 23.sp)
         }
         Spacer(Modifier.height(18.dp))
     }
@@ -817,10 +866,11 @@ private fun DynamicTicket(data: TicketData, countdown: String) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+            .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
             .background(PageBg)
     ) {
-        // Full-width blue tint above the black preview.
+        // Full-width blue tint above the black preview. Its height matches the
+        // corner radius above so the rounding never reaches into the black box.
         Box(Modifier.fillMaxWidth().height(10.dp).background(Cyan))
 
         Row(
@@ -870,10 +920,11 @@ private fun DynamicTicket(data: TicketData, countdown: String) {
         // Blue tint below the black preview is shorter than the panel and
         // starts from the left edge; the rest of the row shows the page
         // background instead of continuing the cyan all the way across.
+        // Half as thick as the strip above the black preview.
         Box(
             Modifier
                 .fillMaxWidth(0.45f)
-                .height(10.dp)
+                .height(5.dp)
                 .background(Cyan)
         )
     }
@@ -905,7 +956,7 @@ private fun RailwaySideBrand(text: String, drawDividerOnRight: Boolean) {
                 native.save()
                 native.rotate(-90f, size.width / 2f, size.height / 2f)
                 val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
-                    color = android.graphics.Color.rgb(212, 212, 216)
+                    color = android.graphics.Color.rgb(154, 154, 165)
                     typeface = Typeface.create("sans-serif", Typeface.BOLD)
                     textAlign = AndroidPaint.Align.CENTER
                     textSize = 19.sp.toPx()
@@ -940,6 +991,7 @@ private fun TicketBody(data: TicketData) {
                     "Journey Ticket",
                     fontSize = 11.sp,
                     color = Color(0xFF7A7B84),
+                    fontWeight = FontWeight.Bold,
                     lineHeight = 13.sp,
                     modifier = Modifier.weight(1f)
                 )
@@ -963,7 +1015,6 @@ private fun TicketBody(data: TicketData) {
                     )
                 }
             }
-            Spacer(Modifier.height(2.dp))
             Text(data.journeyTicket, fontSize = 14.sp, color = Color.Black, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
             Spacer(Modifier.height(12.dp))
 
@@ -987,12 +1038,12 @@ private fun TicketBody(data: TicketData) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ViaRouteIcon()
                     Spacer(Modifier.width(7.dp))
-                    Text("Via: ${data.via}", color = TextBlue, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text("Via: ${data.via}", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }
             }
 
             Spacer(Modifier.height(8.dp))
-            Text("IR:${data.irNumber}", color = TextBlue, fontSize = 13.sp, letterSpacing = 0.6.sp)
+            Text("IR:${data.irNumber}", color = Color.Black, fontSize = 13.sp, letterSpacing = 0.6.sp)
         }
 
         // Cutout notches sit right at the card's true edges, so this divider
@@ -1003,21 +1054,21 @@ private fun TicketBody(data: TicketData) {
             Text(
                 "*Valid for start of journey within 1 hour or until departure of the first train.",
                 fontSize = 12.sp,
-                color = TextBlue,
+                color = Color(0xFF7A7B84),
                 lineHeight = 18.sp
             )
             Spacer(Modifier.height(16.dp))
         }
 
-        // Blue border below "Valid for..." spans edge to edge of the white card.
+        // Blue border below "Valid for..." spans edge to edge of the white card,
+        // as a solid color — the same blue used around the black preview box.
         Box(
             Modifier
                 .fillMaxWidth()
                 .height(14.dp)
                 .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
-                .background(Brush.horizontalGradient(listOf(Cyan, Color(0xFF1598ED), Cyan)))
+                .background(Cyan)
         )
-        Spacer(Modifier.height(2.dp))
     }
 }
 
@@ -1060,11 +1111,11 @@ private fun ViaRouteIcon() {
 private fun TwoColumnField(leftTitle: String, leftValue: String, rightTitle: String, rightValue: String, boldValues: Boolean) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Column(Modifier.weight(1f)) {
-            Text(leftTitle, fontSize = 11.sp, color = Color(0xFF7A7B84), lineHeight = 13.sp)
+            Text(leftTitle, fontSize = 11.sp, color = Color(0xFF7A7B84), fontWeight = FontWeight.Bold, lineHeight = 13.sp)
             Text(leftValue, fontSize = 14.sp, color = Color.Black, fontWeight = if (boldValues) FontWeight.Bold else FontWeight.Normal, lineHeight = 17.sp)
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-            Text(rightTitle, fontSize = 11.sp, color = Color(0xFF7A7B84), textAlign = TextAlign.End, lineHeight = 13.sp)
+            Text(rightTitle, fontSize = 11.sp, color = Color(0xFF7A7B84), fontWeight = FontWeight.Bold, textAlign = TextAlign.End, lineHeight = 13.sp)
             Text(rightValue, fontSize = 14.sp, color = Color.Black, fontWeight = if (boldValues) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.End, lineHeight = 17.sp)
         }
     }
@@ -1075,12 +1126,12 @@ private fun TicketCutoutDivider() {
     Canvas(
         Modifier
             .fillMaxWidth()
-            .height(14.dp)
+            .height(16.dp)
     ) {
-        val r = 6.dp.toPx()
+        val r = 12.dp.toPx()
         val cy = size.height / 2f
-        // Only the inner half of each circle is visible, creating the small,
-        // subtle ticket notches right at both true edges of the white card.
+        // Only the inner half of each circle is visible, creating the ticket
+        // notches right at both true edges of the white card.
         drawCircle(
             color = PageBg,
             radius = r,
@@ -1091,12 +1142,12 @@ private fun TicketCutoutDivider() {
             radius = r,
             center = Offset(size.width, cy)
         )
-        val effect = PathEffect.dashPathEffect(floatArrayOf(5f, 4f), 0f)
+        val effect = PathEffect.dashPathEffect(floatArrayOf(8f, 5f), 0f)
         drawLine(
             color = Color(0xFFD7D9E0),
             start = Offset(r, cy),
             end = Offset(size.width - r, cy),
-            strokeWidth = 1f,
+            strokeWidth = 1.3f,
             pathEffect = effect
         )
     }
