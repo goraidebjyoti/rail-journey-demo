@@ -1,5 +1,6 @@
 package com.example.railjourneydemo
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Paint as AndroidPaint
@@ -20,6 +21,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -47,9 +51,60 @@ import com.google.zxing.MultiFormatWriter
 import kotlinx.coroutines.delay
 import kotlin.math.min
 import kotlin.random.Random
+import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 private const val DEFAULT_SERVICE_NO = "R28199"
 private const val DEFAULT_IR_NO = "19AAAGMO289C1ZC"
+
+private val TRAIN_TYPE_OPTIONS = listOf("ORDINARY", "MAIL/EXPRESS", "SUPERFAST", "AC EMU TRAIN")
+private val TICKET_TYPE_OPTIONS = listOf("JOURNEY", "RETURN")
+private val CLASS_OPTIONS = listOf("SECOND", "FIRST")
+
+private val DATE_TIME_FORMAT = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US).apply { isLenient = false }
+private val TICKET_DATE_TIME_FORMAT = SimpleDateFormat("d MMM yyyy, HH:mm", Locale.US)
+
+/** Current device date & time as "dd/MM/yyyy HH:mm" (24-hour clock). */
+private fun currentDateTimeString(): String = DATE_TIME_FORMAT.format(Calendar.getInstance().time)
+
+/** Adds [hours] to a "dd/MM/yyyy HH:mm" string; returns null if [dateTime] isn't fully valid yet. */
+private fun addHours(dateTime: String, hours: Int): String? = try {
+    val parsed = DATE_TIME_FORMAT.parse(dateTime)
+    if (parsed == null) {
+        null
+    } else {
+        val cal = Calendar.getInstance()
+        cal.time = parsed
+        cal.add(Calendar.HOUR_OF_DAY, hours)
+        DATE_TIME_FORMAT.format(cal.time)
+    }
+} catch (e: Exception) {
+    null
+}
+
+/** Converts "dd/MM/yyyy HH:mm" to the ticket's display format, e.g. "21 Sep 2026, 11:07". */
+private fun toTicketDisplayDateTime(dateTime: String): String = try {
+    val parsed = DATE_TIME_FORMAT.parse(dateTime)
+    if (parsed == null) dateTime else TICKET_DATE_TIME_FORMAT.format(parsed)
+} catch (e: Exception) {
+    dateTime
+}
+
+/** Formats a fare string to always show exactly two decimal places. */
+private fun formatFare(value: String): String {
+    val number = value.trim().toDoubleOrNull() ?: return "0.00"
+    return String.format(Locale.US, "%.2f", number)
+}
+
+/** Keeps only digits and a single decimal point while typing a fare amount. */
+private fun sanitizeFareInput(input: String): String {
+    val filtered = input.filter { it.isDigit() || it == '.' }
+    val firstDot = filtered.indexOf('.')
+    if (firstDot == -1) return filtered
+    return filtered.substring(0, firstDot + 1) + filtered.substring(firstDot + 1).replace(".", "")
+}
 
 private data class TicketData(
     val passengerName: String,
@@ -71,6 +126,85 @@ private data class TicketData(
     val journeyTicket: String,
     val serviceNo: String,
 )
+
+/** A saved passenger's re-usable booking details (timing fields are intentionally excluded). */
+private data class PassengerProfile(
+    val passengerName: String,
+    val mobile: String,
+    val origin: String,
+    val distance: String,
+    val destination: String,
+    val via: String,
+    val adults: String,
+    val children: String,
+    val className: String,
+    val trainType: String,
+    val ticketType: String,
+    val fare: String,
+    val irNumber: String,
+    val serviceNo: String,
+)
+
+private const val PROFILES_PREFS = "rail_journey_profiles"
+private const val PROFILE_NAMES_KEY = "saved_passenger_names"
+
+private fun loadSavedPassengerNames(context: Context): List<String> {
+    val prefs = context.getSharedPreferences(PROFILES_PREFS, Context.MODE_PRIVATE)
+    return (prefs.getStringSet(PROFILE_NAMES_KEY, emptySet()) ?: emptySet()).sorted()
+}
+
+private fun saveProfile(context: Context, profile: PassengerProfile) {
+    val trimmedName = profile.passengerName.trim()
+    if (trimmedName.isEmpty()) return
+    val prefs = context.getSharedPreferences(PROFILES_PREFS, Context.MODE_PRIVATE)
+    val json = JSONObject().apply {
+        put("passengerName", trimmedName)
+        put("mobile", profile.mobile)
+        put("origin", profile.origin)
+        put("distance", profile.distance)
+        put("destination", profile.destination)
+        put("via", profile.via)
+        put("adults", profile.adults)
+        put("children", profile.children)
+        put("className", profile.className)
+        put("trainType", profile.trainType)
+        put("ticketType", profile.ticketType)
+        put("fare", profile.fare)
+        put("irNumber", profile.irNumber)
+        put("serviceNo", profile.serviceNo)
+    }
+    val names = (loadSavedPassengerNames(context) + trimmedName).toSet()
+    prefs.edit()
+        .putString("profile_${trimmedName.lowercase()}", json.toString())
+        .putStringSet(PROFILE_NAMES_KEY, names)
+        .apply()
+}
+
+private fun loadProfile(context: Context, name: String): PassengerProfile? {
+    val prefs = context.getSharedPreferences(PROFILES_PREFS, Context.MODE_PRIVATE)
+    val raw = prefs.getString("profile_${name.trim().lowercase()}", null) ?: return null
+    return try {
+        val json = JSONObject(raw)
+        PassengerProfile(
+            passengerName = json.optString("passengerName"),
+            mobile = json.optString("mobile"),
+            origin = json.optString("origin"),
+            distance = json.optString("distance"),
+            destination = json.optString("destination"),
+            via = json.optString("via"),
+            adults = json.optString("adults"),
+            children = json.optString("children"),
+            className = json.optString("className"),
+            trainType = json.optString("trainType"),
+            ticketType = json.optString("ticketType"),
+            fare = json.optString("fare"),
+            irNumber = json.optString("irNumber"),
+            serviceNo = json.optString("serviceNo"),
+        )
+    } catch (e: Exception) {
+        null
+    }
+}
 
 private val HeaderBlue = Color(0xFF1730D9)
 private val PageBg = Color(0xFFE9EDF9)
@@ -98,6 +232,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun RailJourneyApp() {
+    val context = LocalContext.current
     var showTicket by remember { mutableStateOf(false) }
     var secondsLeft by remember { mutableIntStateOf(300) }
 
@@ -106,19 +241,22 @@ private fun RailJourneyApp() {
     var origin by remember { mutableStateOf("HOWRAH") }
     var distance by remember { mutableStateOf("116 km") }
     var destination by remember { mutableStateOf("KHARAGPUR") }
-    var bookingDateTime by remember { mutableStateOf("21 Sep 2026, 11:07") }
     var via by remember { mutableStateOf("SRC-PKU") }
     var adults by remember { mutableStateOf("1") }
     var children by remember { mutableStateOf("0") }
-    var bookedOn by remember { mutableStateOf("21/09/2026 11:07") }
-    var validTill by remember { mutableStateOf("21/09/2026 12:07") }
-    var className by remember { mutableStateOf("SECOND") }
-    var trainType by remember { mutableStateOf("ORDINARY") }
-    var ticketType by remember { mutableStateOf("JOURNEY") }
+    // Booked On defaults to the device's current date & time (24-hour clock);
+    // Valid Till defaults to three hours after it. Both stay editable.
+    var bookedOn by remember { mutableStateOf(currentDateTimeString()) }
+    var validTill by remember { mutableStateOf(addHours(bookedOn, 3) ?: bookedOn) }
+    var className by remember { mutableStateOf(CLASS_OPTIONS.first()) }
+    var trainType by remember { mutableStateOf(TRAIN_TYPE_OPTIONS.first()) }
+    var ticketType by remember { mutableStateOf(TICKET_TYPE_OPTIONS.first()) }
     var fare by remember { mutableStateOf("30.00") }
     var irNumber by remember { mutableStateOf(DEFAULT_IR_NO) }
     var journeyTicket by remember { mutableStateOf("") }
     var serviceNo by remember { mutableStateOf(DEFAULT_SERVICE_NO) }
+
+    var savedNames by remember { mutableStateOf(loadSavedPassengerNames(context)) }
 
     LaunchedEffect(showTicket) {
         if (showTicket) secondsLeft = 300
@@ -130,13 +268,15 @@ private fun RailJourneyApp() {
         }
     }
 
+    // "Ticket Booking Date & Time" is always derived from "Booked On" — no
+    // separate entry for it.
     val data = TicketData(
         passengerName = passengerName,
         mobile = mobile,
         origin = origin,
         distance = distance,
         destination = destination,
-        bookingDateTime = bookingDateTime,
+        bookingDateTime = toTicketDisplayDateTime(bookedOn),
         via = via,
         adults = adults,
         children = children,
@@ -158,24 +298,74 @@ private fun RailJourneyApp() {
             } else {
                 InputScreen(
                     data = data,
+                    savedNames = savedNames,
                     setPassengerName = { passengerName = it },
                     setMobile = { mobile = it.filter(Char::isDigit).take(15) },
-                    setOrigin = { origin = it },
+                    setOrigin = { origin = it.uppercase() },
                     setDistance = { distance = it },
-                    setDestination = { destination = it },
-                    setBookingDateTime = { bookingDateTime = it },
-                    setVia = { via = it },
+                    setDestination = { destination = it.uppercase() },
+                    setVia = { via = it.uppercase() },
                     setAdults = { adults = it.filter(Char::isDigit) },
                     setChildren = { children = it.filter(Char::isDigit) },
-                    setBookedOn = { bookedOn = it },
+                    setBookedOn = {
+                        bookedOn = it
+                        addHours(it, 3)?.let { computed -> validTill = computed }
+                    },
                     setValidTill = { validTill = it },
+                    resetBookedOnToNow = {
+                        val now = currentDateTimeString()
+                        bookedOn = now
+                        validTill = addHours(now, 3) ?: now
+                    },
                     setClassName = { className = it },
                     setTrainType = { trainType = it },
                     setTicketType = { ticketType = it },
-                    setFare = { fare = it },
+                    setFare = { fare = sanitizeFareInput(it) },
+                    onFareFocusLost = { fare = formatFare(fare) },
                     setIrNumber = { irNumber = sanitizeAlphaNumeric15(it) },
                     setServiceNo = { serviceNo = it.uppercase().take(10) },
+                    onLoadProfile = { name ->
+                        loadProfile(context, name)?.let { p ->
+                            passengerName = p.passengerName
+                            mobile = p.mobile
+                            origin = p.origin
+                            distance = p.distance
+                            destination = p.destination
+                            via = p.via
+                            adults = p.adults
+                            children = p.children
+                            className = p.className
+                            trainType = p.trainType
+                            ticketType = p.ticketType
+                            fare = p.fare
+                            irNumber = p.irNumber
+                            serviceNo = p.serviceNo
+                        }
+                    },
+                    onSaveProfile = {
+                        saveProfile(
+                            context,
+                            PassengerProfile(
+                                passengerName = passengerName,
+                                mobile = mobile,
+                                origin = origin,
+                                distance = distance,
+                                destination = destination,
+                                via = via,
+                                adults = adults,
+                                children = children,
+                                className = className,
+                                trainType = trainType,
+                                ticketType = ticketType,
+                                fare = formatFare(fare).also { fare = it },
+                                irNumber = irNumber,
+                                serviceNo = serviceNo,
+                            )
+                        )
+                        savedNames = loadSavedPassengerNames(context)
+                    },
                     onGenerateTicket = {
+                        fare = formatFare(fare)
                         journeyTicket = generateJourneyTicket()
                         showTicket = true
                     }
@@ -209,26 +399,35 @@ private fun generateJourneyTicket(): String {
 @Composable
 private fun InputScreen(
     data: TicketData,
+    savedNames: List<String>,
     setPassengerName: (String) -> Unit,
     setMobile: (String) -> Unit,
     setOrigin: (String) -> Unit,
     setDistance: (String) -> Unit,
     setDestination: (String) -> Unit,
-    setBookingDateTime: (String) -> Unit,
     setVia: (String) -> Unit,
     setAdults: (String) -> Unit,
     setChildren: (String) -> Unit,
     setBookedOn: (String) -> Unit,
     setValidTill: (String) -> Unit,
+    resetBookedOnToNow: () -> Unit,
     setClassName: (String) -> Unit,
     setTrainType: (String) -> Unit,
     setTicketType: (String) -> Unit,
     setFare: (String) -> Unit,
+    onFareFocusLost: () -> Unit,
     setIrNumber: (String) -> Unit,
     setServiceNo: (String) -> Unit,
+    onLoadProfile: (String) -> Unit,
+    onSaveProfile: () -> Unit,
     onGenerateTicket: () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(PageBg)
+            .verticalScroll(rememberScrollState())
+    ) {
         Box(
             Modifier
                 .fillMaxWidth()
@@ -251,40 +450,120 @@ private fun InputScreen(
         }
 
         Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Field("Passenger Name", data.passengerName, setPassengerName, Modifier.fillMaxWidth())
-            Field("Mobile Number", data.mobile, setMobile, Modifier.fillMaxWidth(), KeyboardType.Phone)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                Field("From Station", data.origin, setOrigin, Modifier.weight(1.5f))
-                Field("Distance (km)", data.distance, setDistance, Modifier.weight(.7f))
-                Field("To Station", data.destination, setDestination, Modifier.weight(1.5f))
+            if (savedNames.isNotEmpty()) {
+                SectionCard(title = "Saved Passengers", icon = Icons.Default.History) {
+                    var expanded by remember { mutableStateOf(false) }
+                    Text(
+                        "Quickly fill in every field from a passenger you've saved before.",
+                        fontSize = 12.sp,
+                        color = Color(0xFF7A7B84)
+                    )
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        OutlinedTextField(
+                            value = "Select a saved passenger",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Load saved passenger") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                            colors = fieldColors()
+                        )
+                        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                            savedNames.forEach { name ->
+                                DropdownMenuItem(
+                                    text = { Text(name) },
+                                    onClick = {
+                                        onLoadProfile(name)
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                Field("Ticket Booking Date & Time", data.bookingDateTime, setBookingDateTime, Modifier.weight(1f))
-                Field("Via", data.via, setVia, Modifier.weight(1f))
+
+            SectionCard(title = "Passenger Details") {
+                Field("Passenger Name", data.passengerName, setPassengerName, Modifier.fillMaxWidth())
+                Field("Mobile Number", data.mobile, setMobile, Modifier.fillMaxWidth(), KeyboardType.Phone)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                Field("Adults", data.adults, setAdults, Modifier.weight(1f), KeyboardType.Number)
-                Field("Children", data.children, setChildren, Modifier.weight(1f), KeyboardType.Number)
+
+            SectionCard(title = "Journey Route") {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Field("From Station", data.origin, setOrigin, Modifier.weight(1.5f))
+                    Field("Distance (km)", data.distance, setDistance, Modifier.weight(.7f))
+                    Field("To Station", data.destination, setDestination, Modifier.weight(1.5f))
+                }
+                Text(
+                    "From/To station and Via are always saved in UPPERCASE.",
+                    fontSize = 11.sp,
+                    color = Color(0xFF7A7B84)
+                )
+                Field("Via", data.via, setVia, Modifier.fillMaxWidth())
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Field("Adults", data.adults, setAdults, Modifier.weight(1f), KeyboardType.Number)
+                    Field("Children", data.children, setChildren, Modifier.weight(1f), KeyboardType.Number)
+                }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                Field("Booked On", data.bookedOn, setBookedOn, Modifier.weight(1f))
-                Field("Valid Till", data.validTill, setValidTill, Modifier.weight(1f))
+
+            SectionCard(title = "Booking Time") {
+                Text(
+                    "Defaults to your device's current date & time. Valid Till auto-fills 3 hours later — both stay editable.",
+                    fontSize = 11.sp,
+                    color = Color(0xFF7A7B84)
+                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Field("Booked On (dd/MM/yyyy HH:mm)", data.bookedOn, setBookedOn, Modifier.weight(1f))
+                    OutlinedButton(
+                        onClick = resetBookedOnToNow,
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Text("Now", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+                Field("Valid Till (dd/MM/yyyy HH:mm)", data.validTill, setValidTill, Modifier.fillMaxWidth())
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                Field("Class", data.className, setClassName, Modifier.weight(1f))
-                // Deliberately editable: the requested train-type selector was replaced with a plain field.
-                Field("Train Type", data.trainType, setTrainType, Modifier.weight(1f))
-                Field("Ticket Type", data.ticketType, setTicketType, Modifier.weight(1f))
+
+            SectionCard(title = "Ticket Details") {
+                DropdownField("Class", data.className, CLASS_OPTIONS, setClassName, Modifier.fillMaxWidth())
+                DropdownField("Train Type", data.trainType, TRAIN_TYPE_OPTIONS, setTrainType, Modifier.fillMaxWidth())
+                DropdownField("Ticket Type", data.ticketType, TICKET_TYPE_OPTIONS, setTicketType, Modifier.fillMaxWidth())
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Field(
+                        "Fare (₹)",
+                        data.fare,
+                        setFare,
+                        Modifier.weight(1f).onFocusChanged { if (!it.isFocused) onFareFocusLost() },
+                        KeyboardType.Decimal
+                    )
+                    Field("IR No. (15 characters)", data.irNumber, setIrNumber, Modifier.weight(1f))
+                }
+                Field("Service No.", data.serviceNo, setServiceNo, Modifier.fillMaxWidth())
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                Field("Fare (₹)", data.fare, setFare, Modifier.weight(1f))
-                Field("IR No. (15 characters)", data.irNumber, setIrNumber, Modifier.weight(1f))
+
+            OutlinedButton(
+                onClick = onSaveProfile,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.4.dp, HeaderBlue),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = HeaderBlue)
+            ) {
+                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Save Passenger Details", fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
-            Field("Service No.", data.serviceNo, setServiceNo, Modifier.fillMaxWidth())
-            Spacer(Modifier.height(4.dp))
+
             Button(
                 onClick = onGenerateTicket,
                 modifier = Modifier.fillMaxWidth().height(58.dp),
@@ -294,6 +573,77 @@ private fun InputScreen(
                 Text("GENERATE TICKET", fontSize = 18.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             }
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun fieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = HeaderBlue,
+    unfocusedBorderColor = Color(0xFFB7C4E2),
+    focusedLabelColor = HeaderBlue,
+    unfocusedLabelColor = TextBlue
+)
+
+@Composable
+private fun SectionCard(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFE7E7EC), RoundedCornerShape(16.dp))
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = HeaderBlue, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextBlue)
+        }
+        content()
+    }
+}
+
+@Composable
+private fun DropdownField(
+    label: String,
+    value: String,
+    options: List<String>,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+            colors = fieldColors()
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onValueChange(option)
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }
@@ -313,12 +663,7 @@ private fun Field(
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         modifier = modifier,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = HeaderBlue,
-            unfocusedBorderColor = Color(0xFFB7C4E2),
-            focusedLabelColor = HeaderBlue,
-            unfocusedLabelColor = TextBlue
-        )
+        colors = fieldColors()
     )
 }
 
