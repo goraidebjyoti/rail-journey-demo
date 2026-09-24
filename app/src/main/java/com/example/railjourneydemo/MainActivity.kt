@@ -374,22 +374,21 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             }
         }
 
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White)
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
-            ) {
-                Text(
-                    "Thank You ${data.passengerName}, Happy Journey !",
-                    fontSize = 14.sp,
-                    color = TextBlue
-                )
-            }
-            Spacer(Modifier.height(16.dp))
+        // Flush, square-edged strip — no card margin and no gap from the header.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(horizontal = 20.dp, vertical = 14.dp)
+        ) {
+            Text(
+                "Thank You ${data.passengerName}, Happy Journey !",
+                fontSize = 14.sp,
+                color = TextBlue
+            )
+        }
 
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
             DynamicTicket(data, countdown)
             TicketBody(data)
 
@@ -412,7 +411,6 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             }
         }
 
-        Spacer(Modifier.height(8.dp))
         // QR panel has square edges and reaches both screen edges.
         Column(
             Modifier
@@ -423,7 +421,7 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp, horizontal = 12.dp),
+                    .padding(vertical = 2.dp, horizontal = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
@@ -434,15 +432,20 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             }
         }
 
-        // Thin separator so the white QR panel's bottom margin reads clearly
-        // above the "Do you know?" panel.
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFDADCE0)))
+        // Soft shadow-like band so the white QR panel's bottom margin reads
+        // clearly above the "Do you know?" panel.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .background(Brush.verticalGradient(listOf(Color(0xFFD7D9DE), Color.White)))
+        )
 
         // Informational panel has square edges and reaches both screen edges.
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFF4F4F7))
+                .background(Color.White)
                 .padding(horizontal = 22.dp, vertical = 18.dp)
         ) {
             Text("Do you know?", fontSize = 17.sp, color = Color.Black, fontWeight = FontWeight.Bold)
@@ -522,7 +525,7 @@ private fun DynamicTicket(data: TicketData, countdown: String) {
         // background instead of continuing the cyan all the way across.
         Box(
             Modifier
-                .fillMaxWidth(0.9f)
+                .fillMaxWidth(0.45f)
                 .height(10.dp)
                 .background(Cyan)
         )
