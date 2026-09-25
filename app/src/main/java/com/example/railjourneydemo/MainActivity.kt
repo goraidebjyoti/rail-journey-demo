@@ -16,6 +16,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -745,9 +746,11 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             ) {
                 IconButton(
                     onClick = onBack,
-                    modifier = Modifier.size(38.dp)
+                    modifier = Modifier
+                        .size(42.dp)
+                        .border(1.5.dp, Color.White, CircleShape)
                 ) {
-                    Icon(Icons.Default.ArrowBack, "Back", tint = Color.White, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.ArrowBack, "Back", tint = Color.White, modifier = Modifier.size(22.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
@@ -862,12 +865,14 @@ private fun DynamicTicket(data: TicketData, countdown: String) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
+            .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
             .background(PageBg)
     ) {
-        // Full-width blue tint above the black preview. Its height matches the
-        // corner radius above so the rounding never reaches into the black box.
-        Box(Modifier.fillMaxWidth().height(10.dp).background(Cyan))
+        // Full-width blue tint above the black preview — same thickness and
+        // curve as the blue strip at the end of the ticket card. Its height
+        // matches the corner radius above so the rounding never reaches into
+        // the black box.
+        Box(Modifier.fillMaxWidth().height(14.dp).background(Cyan))
 
         Row(
             Modifier
@@ -1091,10 +1096,16 @@ private fun TicketNote() {
         Text(
             "Note: This ticket is non refundable. Ticket is stored locally on the device. Please do not change your handset or perform factory reset.",
             fontSize = 13.sp,
-            color = Color(0xFFD34F59),
+            color = Color(0xFFFF3B4E),
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
-            lineHeight = 20.sp
+            lineHeight = 20.sp,
+            style = androidx.compose.ui.text.TextStyle(
+                shadow = androidx.compose.ui.graphics.Shadow(
+                    color = Color(0xFFFF3B4E).copy(alpha = 0.65f),
+                    blurRadius = 10f
+                )
+            )
         )
     }
 }
