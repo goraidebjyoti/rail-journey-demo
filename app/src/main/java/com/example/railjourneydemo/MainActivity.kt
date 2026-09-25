@@ -1099,13 +1099,7 @@ private fun TicketNote() {
             color = Color(0xFFFF3B4E),
             fontWeight = FontWeight.Normal,
             textAlign = TextAlign.Center,
-            lineHeight = 20.sp,
-            style = androidx.compose.ui.text.TextStyle(
-                shadow = androidx.compose.ui.graphics.Shadow(
-                    color = Color(0xFFFF3B4E).copy(alpha = 0.65f),
-                    blurRadius = 10f
-                )
-            )
+            lineHeight = 20.sp
         )
     }
 }
