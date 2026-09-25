@@ -1097,7 +1097,7 @@ private fun TicketNote() {
             "Note: This ticket is non refundable. Ticket is stored locally on the device. Please do not change your handset or perform factory reset.",
             fontSize = 13.sp,
             color = Color(0xFFFF3B4E),
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Normal,
             textAlign = TextAlign.Center,
             lineHeight = 20.sp,
             style = androidx.compose.ui.text.TextStyle(
