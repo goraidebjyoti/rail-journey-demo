@@ -3,7 +3,6 @@
 package com.example.railjourneydemo
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Paint as AndroidPaint
 import android.graphics.Typeface
@@ -17,7 +16,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -460,8 +458,8 @@ private fun InputScreen(
         Modifier
             .fillMaxSize()
             .background(PageBg)
-            .verticalScroll(rememberScrollState())
     ) {
+        // Fixed header — stays anchored at the top and never scrolls with the content.
         Box(
             Modifier
                 .fillMaxWidth()
@@ -483,6 +481,11 @@ private fun InputScreen(
             }
         }
 
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        ) {
         Column(
             Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -624,6 +627,7 @@ private fun InputScreen(
             }
             Spacer(Modifier.height(16.dp))
         }
+        }
     }
 }
 
@@ -719,7 +723,6 @@ private fun Field(
 
 @Composable
 private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit) {
-    val context = LocalContext.current
     val minutes = secondsLeft / 60
     val seconds = secondsLeft % 60
     val countdown = "%02d:%02d".format(minutes, seconds)
@@ -730,9 +733,8 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
         Modifier
             .fillMaxSize()
             .background(PageBg)
-            .verticalScroll(rememberScrollState())
-            .navigationBarsPadding()
     ) {
+        // Fixed header — stays anchored at the top and never scrolls with the content.
         Box(Modifier.fillMaxWidth().background(HeaderBlue)) {
             Row(
                 Modifier
@@ -743,31 +745,24 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             ) {
                 IconButton(
                     onClick = onBack,
-                    modifier = Modifier
-                        .size(52.dp)
-                        .border(1.8.dp, Color.White, CircleShape)
+                    modifier = Modifier.size(38.dp)
                 ) {
-                    Icon(Icons.Default.ArrowBack, "Back", tint = Color.White, modifier = Modifier.size(30.dp))
+                    Icon(Icons.Default.ArrowBack, "Back", tint = Color.White, modifier = Modifier.size(24.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("Booking Details", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                     Text("Mobile: ${data.mobile}", color = Color.White, fontSize = 14.sp)
                 }
-                IconButton(
-                    onClick = {
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, qrPayload)
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share ticket"))
-                    },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(Icons.Default.Share, "Share", tint = Color.White, modifier = Modifier.size(30.dp))
-                }
             }
         }
+
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+        ) {
 
         // Flush, square-edged strip — no card margin and no gap from the header.
         Box(
@@ -806,17 +801,17 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
             }
         }
 
-        // QR panel has square edges and reaches both screen edges.
+        // QR panel has square edges and reaches both screen edges. No cutout
+        // notches here — those only belong on the ticket card above.
         Column(
             Modifier
                 .fillMaxWidth()
                 .background(Color.White)
         ) {
-            TicketCutoutDivider()
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .padding(top = 0.dp, bottom = 6.dp, start = 12.dp, end = 12.dp),
+                    .padding(top = 4.dp, bottom = 4.dp, start = 12.dp, end = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
@@ -828,12 +823,12 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
         }
 
         // Soft shadow-like band so the white QR panel's bottom margin reads
-        // clearly above the "Do you know?" panel — a little more breathing
+        // clearly above the "Do you know?" panel — a bit more breathing
         // room than a bare divider line.
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(10.dp)
+                .height(14.dp)
                 .background(Brush.verticalGradient(listOf(Color(0xFFD7D9DE), Color.White)))
         )
 
@@ -846,18 +841,19 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
         ) {
             Text("Do you know?", fontSize = 17.sp, color = Color.Black, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
-            Text("IR recovers only 57% of cost of travel on an average.", fontSize = 17.sp, color = Color.DarkGray, lineHeight = 23.sp)
+            Text("IR recovers only 57% of cost of travel on an average.", fontSize = 17.sp, color = Color(0xFF6B6C75), lineHeight = 23.sp)
             Spacer(Modifier.height(10.dp))
             Text(
                 "This ticket is booked on a personal user ID. It’s sale/purchase is an offence u/s 143 of the Railways Act, 1989",
                 fontSize = 17.sp,
-                color = Color.DarkGray,
+                color = Color(0xFF6B6C75),
                 lineHeight = 23.sp
             )
             Spacer(Modifier.height(10.dp))
-            Text("For enquiry and integrated railway helpline, please dial 139.", fontSize = 17.sp, color = Color.DarkGray, lineHeight = 23.sp)
+            Text("For enquiry and integrated railway helpline, please dial 139.", fontSize = 17.sp, color = Color(0xFF6B6C75), lineHeight = 23.sp)
         }
         Spacer(Modifier.height(18.dp))
+        }
     }
 }
 
@@ -986,17 +982,29 @@ private fun TicketBody(data: TicketData) {
         // All the regular field content stays inset from the card edges...
         Column(Modifier.padding(horizontal = 16.dp)) {
             Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Journey Ticket",
-                    fontSize = 11.sp,
-                    color = Color(0xFF7A7B84),
-                    fontWeight = FontWeight.Bold,
-                    lineHeight = 13.sp,
-                    modifier = Modifier.weight(1f)
-                )
+            Box(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth(0.7f)) {
+                    Text(
+                        "Journey Ticket",
+                        fontSize = 11.sp,
+                        color = Color(0xFF7A7B84),
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 12.sp
+                    )
+                    Text(
+                        data.journeyTicket,
+                        fontSize = 14.sp,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp,
+                        lineHeight = 15.sp
+                    )
+                }
+                // Overlaid rather than placed in the same Row as the label, so
+                // the badge's own padding never pushes the ticket code down.
                 Box(
                     Modifier
+                        .align(Alignment.TopEnd)
                         .clip(RoundedCornerShape(50))
                         .background(GreenBg)
                         .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -1015,7 +1023,6 @@ private fun TicketBody(data: TicketData) {
                     )
                 }
             }
-            Text(data.journeyTicket, fontSize = 14.sp, color = Color.Black, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
             Spacer(Modifier.height(12.dp))
 
             TwoColumnField("Source", data.origin, "Destination", data.destination, boldValues = true)
@@ -1038,7 +1045,7 @@ private fun TicketBody(data: TicketData) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ViaRouteIcon()
                     Spacer(Modifier.width(7.dp))
-                    Text("Via: ${data.via}", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text("Via: ${data.via}", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                 }
             }
 
