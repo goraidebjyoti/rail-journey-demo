@@ -948,7 +948,7 @@ private fun RailwaySideBrand(text: String, drawDividerOnRight: Boolean) {
                 color = RailwayGrey,
                 start = Offset(x, 0f),
                 end = Offset(x, size.height),
-                strokeWidth = 1.1f,
+                strokeWidth = 2.4f,
                 pathEffect = effect
             )
 
