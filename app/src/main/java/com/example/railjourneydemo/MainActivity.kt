@@ -942,7 +942,7 @@ private fun RailwaySideBrand(text: String, drawDividerOnRight: Boolean) {
         Canvas(Modifier.fillMaxSize()) {
             // The reference has only two dashed lines total: one inner divider
             // on each side of the central ticket content.
-            val effect = PathEffect.dashPathEffect(floatArrayOf(18f, 8f), 0f)
+            val effect = PathEffect.dashPathEffect(floatArrayOf(28f, 12f), 0f)
             val x = if (drawDividerOnRight) size.width - 1.5f else 1.5f
             drawLine(
                 color = RailwayGrey,
@@ -1018,13 +1018,7 @@ private fun TicketBody(data: TicketData) {
                         "●  ACTIVE",
                         color = GreenText,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        style = androidx.compose.ui.text.TextStyle(
-                            shadow = androidx.compose.ui.graphics.Shadow(
-                                color = GreenText.copy(alpha = 0.55f),
-                                blurRadius = 6f
-                            )
-                        )
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
@@ -1050,7 +1044,7 @@ private fun TicketBody(data: TicketData) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ViaRouteIcon()
                     Spacer(Modifier.width(7.dp))
-                    Text("Via: ${data.via}", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                    Text("Via: ${data.via}", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
