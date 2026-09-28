@@ -799,7 +799,7 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, accent: Color, onBa
             )
         }
 
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 14.dp)) {
             DynamicTicket(data, secondsLeft, accent)
             TicketBody(data, accent)
 
@@ -942,7 +942,7 @@ private fun DynamicTicket(data: TicketData, secondsLeft: Int, accent: Color) {
                 Spacer(Modifier.height(2.dp))
                 Text("Ticket is Non-Transferable", color = Color.White, fontSize = 13.sp)
             }
-            RailwaySideBrand("भारतीय रेल", drawDividerOnRight = false)
+            RailwaySideBrand("भारतीय रेल", drawDividerOnRight = false, textSizeSp = 21.5f)
         }
 
         // Progress bar under the black preview: starts at the left edge and
@@ -991,7 +991,7 @@ private fun CountdownText(text: String) {
 }
 
 @Composable
-private fun RailwaySideBrand(text: String, drawDividerOnRight: Boolean) {
+private fun RailwaySideBrand(text: String, drawDividerOnRight: Boolean, textSizeSp: Float = 19f) {
     Box(
         Modifier
             .width(48.dp)
@@ -1019,7 +1019,7 @@ private fun RailwaySideBrand(text: String, drawDividerOnRight: Boolean) {
                     color = android.graphics.Color.rgb(154, 154, 165)
                     typeface = Typeface.create("sans-serif", Typeface.BOLD)
                     textAlign = AndroidPaint.Align.CENTER
-                    textSize = 19.sp.toPx()
+                    textSize = textSizeSp.sp.toPx()
                 }
                 val maxTextWidth = size.height * 0.90f
                 val measured = paint.measureText(text)
@@ -1044,8 +1044,8 @@ private fun TicketBody(data: TicketData, accent: Color) {
             .background(TicketBody)
     ) {
         // All the regular field content stays inset from the card edges...
-        Column(Modifier.padding(horizontal = 16.dp)) {
-            Spacer(Modifier.height(12.dp))
+        Column(Modifier.padding(horizontal = 12.dp)) {
+            Spacer(Modifier.height(13.5.dp))
             Box(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth(0.7f)) {
                     Text(
@@ -1055,28 +1055,33 @@ private fun TicketBody(data: TicketData, accent: Color) {
                         fontWeight = FontWeight.Bold,
                         lineHeight = 12.sp
                     )
+                    Spacer(Modifier.height(2.5.dp))
                     Text(
                         data.journeyTicket,
                         fontSize = 14.sp,
                         color = Color.Black,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp,
-                        lineHeight = 15.sp
+                        lineHeight = 17.sp
                     )
                 }
-                // Overlaid rather than placed in the same Row as the label, so
-                // the badge's own padding never pushes the ticket code down.
+                // Compact pill pinned to the top-right, level with the "Journey
+                // Ticket" line. It is shorter than the label+code block, so it never
+                // adds height and the gap below the code stays the same as between
+                // the other rows.
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
+                        .height(24.dp)
                         .clip(RoundedCornerShape(50))
                         .background(GreenBg)
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "●  ACTIVE",
+                        "● ACTIVE",
                         color = GreenText,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -1084,21 +1089,21 @@ private fun TicketBody(data: TicketData, accent: Color) {
             Spacer(Modifier.height(12.dp))
 
             TwoColumnField("Source", data.origin, "Destination", data.destination, boldValues = true)
-            Spacer(Modifier.height(9.dp))
+            Spacer(Modifier.height(12.dp))
             TwoColumnField("Distance", data.distance, "Passenger", "${data.adults} Adult, ${data.children} Child", boldValues = true)
-            Spacer(Modifier.height(9.dp))
+            Spacer(Modifier.height(12.dp))
             TwoColumnField("Ticket Type", data.ticketType, "Train Types", data.trainType, boldValues = true)
-            Spacer(Modifier.height(9.dp))
+            Spacer(Modifier.height(12.dp))
             TwoColumnField("Class", data.className, "Fare", "₹${data.fare}", boldValues = true)
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
             Box(
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(ViaBoxBg)
                     .border(1.dp, Color(0xFFE3E1E3), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 14.dp, vertical = 11.dp)
+                    .padding(horizontal = 14.dp, vertical = 7.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ViaRouteIcon()
@@ -1107,7 +1112,7 @@ private fun TicketBody(data: TicketData, accent: Color) {
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.5.dp))
             Text("IR:${data.irNumber}", color = Color.Black, fontSize = 13.sp, letterSpacing = 0.6.sp)
         }
 
@@ -1116,13 +1121,14 @@ private fun TicketBody(data: TicketData, accent: Color) {
         TicketCutoutDivider()
 
         Column(Modifier.padding(horizontal = 16.dp)) {
+            Spacer(Modifier.height(18.dp))
             Text(
                 "*Valid for start of journey within 1 hour or until departure of the first train.",
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 color = Color(0xFF7A7B84),
-                lineHeight = 18.sp
+                lineHeight = 15.sp
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(10.dp))
         }
 
         // Blue border below "Valid for..." spans edge to edge of the white card,
@@ -1152,7 +1158,7 @@ private fun TicketNote() {
             color = Color(0xFFFF3B4E),
             fontWeight = FontWeight.Normal,
             textAlign = TextAlign.Center,
-            lineHeight = 20.sp
+            lineHeight = 18.sp
         )
     }
 }
@@ -1177,10 +1183,12 @@ private fun TwoColumnField(leftTitle: String, leftValue: String, rightTitle: Str
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Column(Modifier.weight(1f)) {
             Text(leftTitle, fontSize = 11.sp, color = Color(0xFF7A7B84), fontWeight = FontWeight.Bold, lineHeight = 13.sp)
+            Spacer(Modifier.height(3.5.dp))
             Text(leftValue, fontSize = 14.sp, color = Color.Black, fontWeight = if (boldValues) FontWeight.Bold else FontWeight.Normal, lineHeight = 17.sp)
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
             Text(rightTitle, fontSize = 11.sp, color = Color(0xFF7A7B84), fontWeight = FontWeight.Bold, textAlign = TextAlign.End, lineHeight = 13.sp)
+            Spacer(Modifier.height(3.5.dp))
             Text(rightValue, fontSize = 14.sp, color = Color.Black, fontWeight = if (boldValues) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.End, lineHeight = 17.sp)
         }
     }
