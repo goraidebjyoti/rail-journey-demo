@@ -9,6 +9,18 @@ import android.graphics.Typeface
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -241,7 +253,13 @@ private val TicketBlack = Color(0xFF17171C)
 private val Yellow = Color(0xFFFFF52D)
 private val RedOrange = Color(0xFFFF4A28)
 private val DateOrange = Color(0xFFFFA21A)
-private val Cyan = Color(0xFF67CDE6)
+// Accent colours for the ticket's strips. One is picked at random every time
+// a ticket is generated.
+private val AccentBlue = Color(0xFF67CDE6)
+private val AccentGreen = Color(0xFFA4D67E)
+private val AccentViolet = Color(0xFFB8A0F0)
+private val ACCENT_COLORS = listOf(AccentBlue, AccentGreen, AccentViolet)
+private const val TICKET_COUNTDOWN_SECONDS = 300
 private val RailwayGrey = Color(0xFF9A9AA5)
 private val BookingGrey = Color(0xFFB9BAC1)
 private val ViaBoxBg = Color(0xFFF8F7F8)
@@ -283,6 +301,7 @@ private fun RailJourneyApp() {
     var irNumber by remember { mutableStateOf(DEFAULT_IR_NO) }
     var journeyTicket by remember { mutableStateOf("") }
     var serviceNo by remember { mutableStateOf(DEFAULT_SERVICE_NO) }
+    var accentColor by remember { mutableStateOf(AccentBlue) }
 
     var savedJourneys by remember { mutableStateOf(loadSavedJourneys(context)) }
 
@@ -322,7 +341,7 @@ private fun RailJourneyApp() {
     MaterialTheme {
         Surface(Modifier.fillMaxSize(), color = PageBg) {
             if (showTicket) {
-                TicketScreen(data, secondsLeft, onBack = { showTicket = false })
+                TicketScreen(data, secondsLeft, accentColor, onBack = { showTicket = false })
             } else {
                 InputScreen(
                     data = data,
@@ -399,6 +418,8 @@ private fun RailJourneyApp() {
                     onGenerateTicket = {
                         fare = formatFare(fare)
                         journeyTicket = generateJourneyTicket()
+                        accentColor = ACCENT_COLORS.random()
+                        secondsLeft = TICKET_COUNTDOWN_SECONDS
                         showTicket = true
                     }
                 )
@@ -723,10 +744,7 @@ private fun Field(
 }
 
 @Composable
-private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit) {
-    val minutes = secondsLeft / 60
-    val seconds = secondsLeft % 60
-    val countdown = "%02d:%02d".format(minutes, seconds)
+private fun TicketScreen(data: TicketData, secondsLeft: Int, accent: Color, onBack: () -> Unit) {
     val qrPayload = buildQrPayload(data)
     val qrBitmap = remember(qrPayload) { generateQrBitmap(qrPayload, 560) }
 
@@ -782,8 +800,8 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
         }
 
         Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
-            DynamicTicket(data, countdown)
-            TicketBody(data)
+            DynamicTicket(data, secondsLeft, accent)
+            TicketBody(data, accent)
 
             // The refund note is a separate element, outside the journey-ticket card.
             Spacer(Modifier.height(14.dp))
@@ -861,7 +879,16 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, onBack: () -> Unit)
 }
 
 @Composable
-private fun DynamicTicket(data: TicketData, countdown: String) {
+private fun DynamicTicket(data: TicketData, secondsLeft: Int, accent: Color) {
+    // The strip under the black box is a progress bar: it grows from the left
+    // edge as the countdown runs down, reaching full width at 00:00.
+    val elapsedFraction = (TICKET_COUNTDOWN_SECONDS - secondsLeft).coerceIn(0, TICKET_COUNTDOWN_SECONDS) /
+        TICKET_COUNTDOWN_SECONDS.toFloat()
+    val progress by animateFloatAsState(
+        targetValue = elapsedFraction,
+        animationSpec = tween(durationMillis = 1000, easing = LinearEasing),
+        label = "countdownProgress"
+    )
     Column(
         Modifier
             .fillMaxWidth()
@@ -872,7 +899,7 @@ private fun DynamicTicket(data: TicketData, countdown: String) {
         // curve as the blue strip at the end of the ticket card. Its height
         // matches the corner radius above so the rounding never reaches into
         // the black box.
-        Box(Modifier.fillMaxWidth().height(14.dp).background(Cyan))
+        Box(Modifier.fillMaxWidth().height(14.dp).background(accent))
 
         Row(
             Modifier
@@ -899,7 +926,7 @@ private fun DynamicTicket(data: TicketData, countdown: String) {
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(1.dp))
-                Text(countdown, color = RedOrange, fontSize = 44.sp, fontWeight = FontWeight.ExtraBold)
+                FallingCountdown(secondsLeft)
                 Spacer(Modifier.height(0.dp))
                 Text("Ticket Booking Date & Time", color = BookingGrey, fontSize = 13.sp)
                 Spacer(Modifier.height(1.dp))
@@ -918,17 +945,49 @@ private fun DynamicTicket(data: TicketData, countdown: String) {
             RailwaySideBrand("भारतीय रेल", drawDividerOnRight = false)
         }
 
-        // Blue tint below the black preview is shorter than the panel and
-        // starts from the left edge; the rest of the row shows the page
-        // background instead of continuing the cyan all the way across.
-        // Half as thick as the strip above the black preview.
+        // Progress bar under the black preview: starts at the left edge and
+        // grows with the countdown; the rest of the row shows the page
+        // background. Half as thick as the strip above the black preview.
         Box(
             Modifier
-                .fillMaxWidth(0.45f)
+                .fillMaxWidth(progress.coerceIn(0f, 1f))
                 .height(5.dp)
-                .background(Cyan)
+                .background(accent)
         )
     }
+}
+
+/** Countdown text whose digits fall: the new value drops in from above while the old one falls away. */
+@Composable
+private fun FallingCountdown(secondsLeft: Int) {
+    val minutes = (secondsLeft / 60).coerceAtLeast(0)
+    val seconds = (secondsLeft % 60).coerceAtLeast(0)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        FallingDigits("%02d".format(minutes))
+        CountdownText(":")
+        FallingDigits("%02d".format(seconds))
+    }
+}
+
+@Composable
+private fun FallingDigits(value: String) {
+    AnimatedContent(
+        targetState = value,
+        transitionSpec = {
+            (slideInVertically(animationSpec = tween(450, easing = LinearOutSlowInEasing)) { fullHeight -> -fullHeight } +
+                fadeIn(animationSpec = tween(300))) togetherWith
+                (slideOutVertically(animationSpec = tween(450, easing = FastOutLinearInEasing)) { fullHeight -> fullHeight } +
+                    fadeOut(animationSpec = tween(300))) using SizeTransform(clip = false)
+        },
+        label = "fallingDigits"
+    ) { text ->
+        CountdownText(text)
+    }
+}
+
+@Composable
+private fun CountdownText(text: String) {
+    Text(text, color = RedOrange, fontSize = 44.sp, fontWeight = FontWeight.ExtraBold)
 }
 
 @Composable
@@ -977,7 +1036,7 @@ private fun RailwaySideBrand(text: String, drawDividerOnRight: Boolean) {
 }
 
 @Composable
-private fun TicketBody(data: TicketData) {
+private fun TicketBody(data: TicketData, accent: Color) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -1073,7 +1132,7 @@ private fun TicketBody(data: TicketData) {
                 .fillMaxWidth()
                 .height(14.dp)
                 .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
-                .background(Cyan)
+                .background(accent)
         )
     }
 }
