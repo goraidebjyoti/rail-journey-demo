@@ -895,31 +895,33 @@ private fun Modifier.diamondWatermark(
     val w = tileWidth.toPx()
     val h = tileHeight.toPx()
     val glowRadius = maxOf(w, h) * 0.62f
-    val diamonds = buildList {
-        var row = 0
-        var y = -h / 2f
-        while (y < size.height + h) {
-            val xOffset = if (row % 2 == 0) 0f else w / 2f
-            var x = -w + xOffset
-            while (x < size.width + w) {
-                val path = Path().apply {
-                    moveTo(x, y - h / 2f)
-                    lineTo(x + w / 2f, y)
-                    lineTo(x, y + h / 2f)
-                    lineTo(x - w / 2f, y)
-                    close()
-                }
-                val brush = Brush.radialGradient(
-                    colors = listOf(tint, Color.Transparent),
-                    center = Offset(x, y),
-                    radius = glowRadius
-                )
-                add(path to brush)
-                x += w
+    // NOTE: deliberately not buildList { ... } — that block's implicit
+    // MutableList receiver has its own `size: Int` property, which would
+    // shadow this CacheDrawScope's `size: Size` used below.
+    val diamonds = mutableListOf<Pair<Path, Brush>>()
+    var row = 0
+    var y = -h / 2f
+    while (y < size.height + h) {
+        val xOffset = if (row % 2 == 0) 0f else w / 2f
+        var x = -w + xOffset
+        while (x < size.width + w) {
+            val path = Path().apply {
+                moveTo(x, y - h / 2f)
+                lineTo(x + w / 2f, y)
+                lineTo(x, y + h / 2f)
+                lineTo(x - w / 2f, y)
+                close()
             }
-            y += h / 2f
-            row++
+            val brush = Brush.radialGradient(
+                colors = listOf(tint, Color.Transparent),
+                center = Offset(x, y),
+                radius = glowRadius
+            )
+            diamonds.add(path to brush)
+            x += w
         }
+        y += h / 2f
+        row++
     }
     onDrawBehind {
         diamonds.forEach { (path, brush) -> drawPath(path, brush = brush) }
