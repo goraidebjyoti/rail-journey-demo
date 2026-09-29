@@ -882,49 +882,85 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, accent: Color, onBa
     }
 }
 
-// Faint repeating diamond/argyle watermark across the black preview panel —
-// like the quilted security texture on the reference ticket. Each diamond is
-// tall (taller than wide, not a rotated square) and filled with its own soft
-// radial glow that fades to nothing at its own edges, so neighboring diamonds
-// meet at a soft dark seam instead of a hard checkerboard line.
+// Subtle faceted diamond security pattern used inside the black dynamic-preview panel.
+// The reference uses crisp, low-contrast triangular facets rather than the soft
+// radial glow used by the earlier version. Each diamond is split into four
+// triangles so the pattern reads as a dark geometric/quilted watermark.
 private fun Modifier.diamondWatermark(
-    tileWidth: Dp = 56.dp,
-    tileHeight: Dp = 80.dp,
+    tileWidth: Dp = 104.dp,
+    tileHeight: Dp = 116.dp,
     tint: Color = DiamondTint
 ): Modifier = this.drawWithCache {
     val w = tileWidth.toPx()
     val h = tileHeight.toPx()
-    val glowRadius = maxOf(w, h) * 0.62f
-    // NOTE: deliberately not buildList { ... } — that block's implicit
-    // MutableList receiver has its own `size: Int` property, which would
-    // shadow this CacheDrawScope's `size: Size` used below.
-    val diamonds = mutableListOf<Pair<Path, Brush>>()
+
+    data class Facet(val path: Path, val color: Color)
+
+    val facets = mutableListOf<Facet>()
     var row = 0
-    var y = -h / 2f
-    while (y < size.height + h) {
-        val xOffset = if (row % 2 == 0) 0f else w / 2f
-        var x = -w + xOffset
-        while (x < size.width + w) {
-            val path = Path().apply {
-                moveTo(x, y - h / 2f)
-                lineTo(x + w / 2f, y)
-                lineTo(x, y + h / 2f)
-                lineTo(x - w / 2f, y)
+    var cy = -h / 2f
+
+    while (cy < size.height + h) {
+        // Offset alternate rows by half a diamond, producing the same
+        // interlocking/tessellated appearance as the reference.
+        val xOffset = if (row and 1 == 0) 0f else w / 2f
+        var cx = -w + xOffset
+
+        while (cx < size.width + w) {
+            val top = Offset(cx, cy - h / 2f)
+            val right = Offset(cx + w / 2f, cy)
+            val bottom = Offset(cx, cy + h / 2f)
+            val left = Offset(cx - w / 2f, cy)
+            val center = Offset(cx, cy)
+
+            // Keep the contrast extremely low: the reference pattern is a
+            // watermark, not a visible grid. The four facets alternate subtly
+            // between darker and lighter black/grey tones.
+            val dark = Color.White.copy(alpha = tint.alpha * 0.34f)
+            val light = Color.White.copy(alpha = tint.alpha * 0.72f)
+            val mid = Color.White.copy(alpha = tint.alpha * 0.50f)
+
+            facets += Facet(Path().apply {
+                moveTo(top.x, top.y)
+                lineTo(right.x, right.y)
+                lineTo(center.x, center.y)
                 close()
-            }
-            val brush = Brush.radialGradient(
-                colors = listOf(tint, Color.Transparent),
-                center = Offset(x, y),
-                radius = glowRadius
-            )
-            diamonds.add(path to brush)
-            x += w
+            }, light)
+
+            facets += Facet(Path().apply {
+                moveTo(right.x, right.y)
+                lineTo(bottom.x, bottom.y)
+                lineTo(center.x, center.y)
+                close()
+            }, dark)
+
+            facets += Facet(Path().apply {
+                moveTo(bottom.x, bottom.y)
+                lineTo(left.x, left.y)
+                lineTo(center.x, center.y)
+                close()
+            }, mid)
+
+            facets += Facet(Path().apply {
+                moveTo(left.x, left.y)
+                lineTo(top.x, top.y)
+                lineTo(center.x, center.y)
+                close()
+            }, dark)
+
+            // Add a very faint inner diagonal/facet treatment. It prevents the
+            // texture from looking like four flat triangles while preserving the
+            // crisp geometric character of the reference.
+            cx += w
         }
-        y += h / 2f
+        cy += h / 2f
         row++
     }
+
     onDrawBehind {
-        diamonds.forEach { (path, brush) -> drawPath(path, brush = brush) }
+        facets.forEach { facet ->
+            drawPath(facet.path, color = facet.color)
+        }
     }
 }
 
