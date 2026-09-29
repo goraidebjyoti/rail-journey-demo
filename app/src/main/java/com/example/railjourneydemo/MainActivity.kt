@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
@@ -252,7 +253,7 @@ private val HeaderBlue = Color(0xFF1730D9)
 private val PageBg = Color(0xFFE9EDF9)
 private val TextBlue = Color(0xFF303C68)
 private val TicketBlack = Color(0xFF17171C)
-private val DiamondTint = Color.White.copy(alpha = 0.05f)
+private val DiamondTint = Color.White.copy(alpha = 0.09f)
 private val Yellow = Color(0xFFFFF52D)
 private val RedOrange = Color(0xFFFF4A28)
 private val DateOrange = Color(0xFFFFA21A)
@@ -882,34 +883,48 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, accent: Color, onBa
 }
 
 // Faint repeating diamond/argyle watermark across the black preview panel —
-// like the security texture on the reference ticket, subtle enough to mostly
-// blend into the black at a glance.
-private fun Modifier.diamondWatermark(tile: Dp = 40.dp, tint: Color = DiamondTint): Modifier =
-    this.drawBehind {
-        val s = tile.toPx()
-        val path = Path()
-        var j = 0
-        var y = 0f
-        while (y < size.height + s) {
-            var i = 0
-            var x = 0f
-            while (x < size.width + s) {
-                if ((i + j) % 2 == 0) {
-                    path.reset()
-                    path.moveTo(x + s / 2f, y)
-                    path.lineTo(x + s, y + s / 2f)
-                    path.lineTo(x + s / 2f, y + s)
-                    path.lineTo(x, y + s / 2f)
-                    path.close()
-                    drawPath(path, color = tint)
+// like the quilted security texture on the reference ticket. Each diamond is
+// tall (taller than wide, not a rotated square) and filled with its own soft
+// radial glow that fades to nothing at its own edges, so neighboring diamonds
+// meet at a soft dark seam instead of a hard checkerboard line.
+private fun Modifier.diamondWatermark(
+    tileWidth: Dp = 56.dp,
+    tileHeight: Dp = 80.dp,
+    tint: Color = DiamondTint
+): Modifier = this.drawWithCache {
+    val w = tileWidth.toPx()
+    val h = tileHeight.toPx()
+    val glowRadius = maxOf(w, h) * 0.62f
+    val diamonds = buildList {
+        var row = 0
+        var y = -h / 2f
+        while (y < size.height + h) {
+            val xOffset = if (row % 2 == 0) 0f else w / 2f
+            var x = -w + xOffset
+            while (x < size.width + w) {
+                val path = Path().apply {
+                    moveTo(x, y - h / 2f)
+                    lineTo(x + w / 2f, y)
+                    lineTo(x, y + h / 2f)
+                    lineTo(x - w / 2f, y)
+                    close()
                 }
-                x += s
-                i++
+                val brush = Brush.radialGradient(
+                    colors = listOf(tint, Color.Transparent),
+                    center = Offset(x, y),
+                    radius = glowRadius
+                )
+                add(path to brush)
+                x += w
             }
-            y += s
-            j++
+            y += h / 2f
+            row++
         }
     }
+    onDrawBehind {
+        diamonds.forEach { (path, brush) -> drawPath(path, brush = brush) }
+    }
+}
 
 @Composable
 private fun DynamicTicket(data: TicketData, secondsLeft: Int, accent: Color) {
