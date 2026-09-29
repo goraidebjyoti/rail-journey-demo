@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -250,6 +252,7 @@ private val HeaderBlue = Color(0xFF1730D9)
 private val PageBg = Color(0xFFE9EDF9)
 private val TextBlue = Color(0xFF303C68)
 private val TicketBlack = Color(0xFF17171C)
+private val DiamondTint = Color.White.copy(alpha = 0.05f)
 private val Yellow = Color(0xFFFFF52D)
 private val RedOrange = Color(0xFFFF4A28)
 private val DateOrange = Color(0xFFFFA21A)
@@ -878,6 +881,36 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, accent: Color, onBa
     }
 }
 
+// Faint repeating diamond/argyle watermark across the black preview panel —
+// like the security texture on the reference ticket, subtle enough to mostly
+// blend into the black at a glance.
+private fun Modifier.diamondWatermark(tile: Dp = 40.dp, tint: Color = DiamondTint): Modifier =
+    this.drawBehind {
+        val s = tile.toPx()
+        val path = Path()
+        var j = 0
+        var y = 0f
+        while (y < size.height + s) {
+            var i = 0
+            var x = 0f
+            while (x < size.width + s) {
+                if ((i + j) % 2 == 0) {
+                    path.reset()
+                    path.moveTo(x + s / 2f, y)
+                    path.lineTo(x + s, y + s / 2f)
+                    path.lineTo(x + s / 2f, y + s)
+                    path.lineTo(x, y + s / 2f)
+                    path.close()
+                    drawPath(path, color = tint)
+                }
+                x += s
+                i++
+            }
+            y += s
+            j++
+        }
+    }
+
 @Composable
 private fun DynamicTicket(data: TicketData, secondsLeft: Int, accent: Color) {
     // The strip under the black box is a progress bar: it grows from the left
@@ -905,7 +938,8 @@ private fun DynamicTicket(data: TicketData, secondsLeft: Int, accent: Color) {
             Modifier
                 .fillMaxWidth()
                 .height(190.dp)
-                .background(TicketBlack),
+                .background(TicketBlack)
+                .diamondWatermark(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Exactly one dashed divider on each side of the black panel.
