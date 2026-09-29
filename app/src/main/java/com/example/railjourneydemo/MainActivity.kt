@@ -253,7 +253,7 @@ private val HeaderBlue = Color(0xFF1730D9)
 private val PageBg = Color(0xFFE9EDF9)
 private val TextBlue = Color(0xFF303C68)
 private val TicketBlack = Color(0xFF17171C)
-private val DiamondTint = Color.White.copy(alpha = 0.09f)
+private val DiamondTint = Color.White.copy(alpha = 0.045f)
 private val Yellow = Color(0xFFFFF52D)
 private val RedOrange = Color(0xFFFF4A28)
 private val DateOrange = Color(0xFFFFA21A)
@@ -882,84 +882,79 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, accent: Color, onBa
     }
 }
 
-// Subtle faceted diamond security pattern used inside the black dynamic-preview panel.
-// The reference uses crisp, low-contrast triangular facets rather than the soft
-// radial glow used by the earlier version. Each diamond is split into four
-// triangles so the pattern reads as a dark geometric/quilted watermark.
+// Subtle faceted rhombus security pattern used inside the black dynamic-preview panel.
+// The reference is a repeating vertical-rhombus lattice: each column is shifted
+// vertically by half a rhombus so neighbouring rhombi meet along their slanted
+// edges. There are no horizontal/vertical rectangular grid cells.
 private fun Modifier.diamondWatermark(
-    tileWidth: Dp = 104.dp,
-    tileHeight: Dp = 116.dp,
+    rhombusWidth: Dp = 96.dp,
+    rhombusHeight: Dp = 142.dp,
     tint: Color = DiamondTint
 ): Modifier = this.drawWithCache {
-    val w = tileWidth.toPx()
-    val h = tileHeight.toPx()
+    val fullW = rhombusWidth.toPx()
+    val fullH = rhombusHeight.toPx()
+    val halfW = fullW / 2f
+    val halfH = fullH / 2f
 
-    data class Facet(val path: Path, val color: Color)
+    // Very low-contrast inks. The geometry should do the work; there are no
+    // bright borders, gradients, or glow effects in the reference.
+    val dark = Color.White.copy(alpha = tint.alpha * 0.30f)
+    val mid = Color.White.copy(alpha = tint.alpha * 0.48f)
+    val light = Color.White.copy(alpha = tint.alpha * 0.68f)
+    val deepest = Color.Black.copy(alpha = 0.025f)
 
-    val facets = mutableListOf<Facet>()
-    var row = 0
-    var cy = -h / 2f
+    data class Rhombus(val cx: Float, val cy: Float, val variant: Int)
+    val rhombi = mutableListOf<Rhombus>()
 
-    while (cy < size.height + h) {
-        // Offset alternate rows by half a diamond, producing the same
-        // interlocking/tessellated appearance as the reference.
-        val xOffset = if (row and 1 == 0) 0f else w / 2f
-        var cx = -w + xOffset
+    // Columns are one rhombus-width apart. Alternate columns move down by
+    // half a rhombus-height; this gives the reference's interlocking lattice.
+    val firstColumn = (-fullW / fullW).toInt() - 2
+    val lastColumn = (size.width / fullW).toInt() + 2
+    val firstRow = (-fullH / fullH).toInt() - 3
+    val lastRow = (size.height / fullH).toInt() + 3
 
-        while (cx < size.width + w) {
-            val top = Offset(cx, cy - h / 2f)
-            val right = Offset(cx + w / 2f, cy)
-            val bottom = Offset(cx, cy + h / 2f)
-            val left = Offset(cx - w / 2f, cy)
-            val center = Offset(cx, cy)
+    for (column in firstColumn..lastColumn) {
+        val x = column * fullW
+        val yOffset = if ((column and 1) == 0) 0f else halfH
 
-            // Keep the contrast extremely low: the reference pattern is a
-            // watermark, not a visible grid. The four facets alternate subtly
-            // between darker and lighter black/grey tones.
-            val dark = Color.White.copy(alpha = tint.alpha * 0.34f)
-            val light = Color.White.copy(alpha = tint.alpha * 0.72f)
-            val mid = Color.White.copy(alpha = tint.alpha * 0.50f)
-
-            facets += Facet(Path().apply {
-                moveTo(top.x, top.y)
-                lineTo(right.x, right.y)
-                lineTo(center.x, center.y)
-                close()
-            }, light)
-
-            facets += Facet(Path().apply {
-                moveTo(right.x, right.y)
-                lineTo(bottom.x, bottom.y)
-                lineTo(center.x, center.y)
-                close()
-            }, dark)
-
-            facets += Facet(Path().apply {
-                moveTo(bottom.x, bottom.y)
-                lineTo(left.x, left.y)
-                lineTo(center.x, center.y)
-                close()
-            }, mid)
-
-            facets += Facet(Path().apply {
-                moveTo(left.x, left.y)
-                lineTo(top.x, top.y)
-                lineTo(center.x, center.y)
-                close()
-            }, dark)
-
-            // Add a very faint inner diagonal/facet treatment. It prevents the
-            // texture from looking like four flat triangles while preserving the
-            // crisp geometric character of the reference.
-            cx += w
+        for (row in firstRow..lastRow) {
+            val y = row * fullH + yOffset
+            if (x >= -fullW && x <= size.width + fullW &&
+                y >= -fullH && y <= size.height + fullH) {
+                rhombi += Rhombus(x, y, (column * 3 + row).and(3))
+            }
         }
-        cy += h / 2f
-        row++
+    }
+
+    fun trianglePath(a: Offset, b: Offset, c: Offset): Path = Path().apply {
+        moveTo(a.x, a.y)
+        lineTo(b.x, b.y)
+        lineTo(c.x, c.y)
+        close()
     }
 
     onDrawBehind {
-        facets.forEach { facet ->
-            drawPath(facet.path, color = facet.color)
+        rhombi.forEach { r ->
+            val top = Offset(r.cx, r.cy - halfH)
+            val right = Offset(r.cx + halfW, r.cy)
+            val bottom = Offset(r.cx, r.cy + halfH)
+            val left = Offset(r.cx - halfW, r.cy)
+
+            // Keep the centre almost centered. The four facets are deliberately
+            // angular and flat so the result reads as a printed rhombus pattern.
+            val centre = Offset(r.cx, r.cy)
+
+            val colors = when (r.variant) {
+                0 -> arrayOf(light, dark, mid, deepest)
+                1 -> arrayOf(mid, light, dark, mid)
+                2 -> arrayOf(dark, mid, light, deepest)
+                else -> arrayOf(mid, deepest, mid, light)
+            }
+
+            drawPath(trianglePath(top, right, centre), colors[0])
+            drawPath(trianglePath(right, bottom, centre), colors[1])
+            drawPath(trianglePath(bottom, left, centre), colors[2])
+            drawPath(trianglePath(left, top, centre), colors[3])
         }
     }
 }
