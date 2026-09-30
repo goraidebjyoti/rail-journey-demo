@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
@@ -915,7 +916,10 @@ private fun Modifier.diamondWatermark(
         }
         j++
     }
-    onDrawBehind { drawPath(path, color = color) }
+    // Compose does not clip drawing to the layout bounds, and the first row/column
+    // of diamonds start outside the panel — clip so nothing spills onto the
+    // coloured strips above and below the black box.
+    onDrawBehind { clipRect { drawPath(path, color = color) } }
 }
 
 @Composable
