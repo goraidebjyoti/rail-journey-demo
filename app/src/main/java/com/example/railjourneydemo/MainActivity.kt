@@ -252,8 +252,9 @@ private fun deleteJourney(context: Context, id: String): List<SavedJourney> {
 private val HeaderBlue = Color(0xFF1730D9)
 private val PageBg = Color(0xFFE9EDF9)
 private val TextBlue = Color(0xFF303C68)
-private val TicketBlack = Color(0xFF17171C)
-private val DiamondTint = Color.White.copy(alpha = 0.045f)
+// Two near-black tones of the harlequin texture (dark = base fill, light = diamonds).
+private val TicketBlack = Color(0xFF121217)
+private val DiamondLight = Color(0xFF1B1B21)
 private val Yellow = Color(0xFFFFF52D)
 private val RedOrange = Color(0xFFFF4A28)
 private val DateOrange = Color(0xFFFFA21A)
@@ -882,81 +883,39 @@ private fun TicketScreen(data: TicketData, secondsLeft: Int, accent: Color, onBa
     }
 }
 
-// Subtle faceted rhombus security pattern used inside the black dynamic-preview panel.
-// The reference is a repeating vertical-rhombus lattice: each column is shifted
-// vertically by half a rhombus so neighbouring rhombi meet along their slanted
-// edges. There are no horizontal/vertical rectangular grid cells.
+// Harlequin (argyle) texture across the black preview panel, matched to the
+// reference photo: hard-edged, TALL diamonds (about 37dp wide x 64dp high, a
+// 1 : sqrt(3) rhombus) in two near-black tones that alternate like a checkerboard.
+// The base fill (TicketBlack) is the dark tone; only the lighter diamonds are
+// drawn here, all in one Path. The phase (where the first diamond sits) was
+// measured from the reference so the pattern lines up the same way.
 private fun Modifier.diamondWatermark(
-    rhombusWidth: Dp = 96.dp,
-    rhombusHeight: Dp = 142.dp,
-    tint: Color = DiamondTint
+    tileWidth: Dp = 37.dp,
+    tileHeight: Dp = 64.dp,
+    color: Color = DiamondLight
 ): Modifier = this.drawWithCache {
-    val fullW = rhombusWidth.toPx()
-    val fullH = rhombusHeight.toPx()
-    val halfW = fullW / 2f
-    val halfH = fullH / 2f
-
-    // Very low-contrast inks. The geometry should do the work; there are no
-    // bright borders, gradients, or glow effects in the reference.
-    val dark = Color.White.copy(alpha = tint.alpha * 0.30f)
-    val mid = Color.White.copy(alpha = tint.alpha * 0.48f)
-    val light = Color.White.copy(alpha = tint.alpha * 0.68f)
-    val deepest = Color.Black.copy(alpha = 0.025f)
-
-    data class Rhombus(val cx: Float, val cy: Float, val variant: Int)
-    val rhombi = mutableListOf<Rhombus>()
-
-    // Columns are one rhombus-width apart. Alternate columns move down by
-    // half a rhombus-height; this gives the reference's interlocking lattice.
-    val firstColumn = (-fullW / fullW).toInt() - 2
-    val lastColumn = (size.width / fullW).toInt() + 2
-    val firstRow = (-fullH / fullH).toInt() - 3
-    val lastRow = (size.height / fullH).toInt() + 3
-
-    for (column in firstColumn..lastColumn) {
-        val x = column * fullW
-        val yOffset = if ((column and 1) == 0) 0f else halfH
-
-        for (row in firstRow..lastRow) {
-            val y = row * fullH + yOffset
-            if (x >= -fullW && x <= size.width + fullW &&
-                y >= -fullH && y <= size.height + fullH) {
-                rhombi += Rhombus(x, y, (column * 3 + row).and(3))
-            }
+    val w = tileWidth.toPx()
+    val h = tileHeight.toPx()
+    // Centre of one light diamond, measured from the panel's top-left corner.
+    val originX = w * (20.5f / 37f)
+    val originY = h * (10f / 64f)
+    val path = Path()
+    var j = -1
+    while (originY + j * h - h / 2f < size.height) {
+        var i = -1
+        while (originX + i * w - w / 2f < size.width) {
+            val cx = originX + i * w
+            val cy = originY + j * h
+            path.moveTo(cx, cy - h / 2f)
+            path.lineTo(cx + w / 2f, cy)
+            path.lineTo(cx, cy + h / 2f)
+            path.lineTo(cx - w / 2f, cy)
+            path.close()
+            i++
         }
+        j++
     }
-
-    fun trianglePath(a: Offset, b: Offset, c: Offset): Path = Path().apply {
-        moveTo(a.x, a.y)
-        lineTo(b.x, b.y)
-        lineTo(c.x, c.y)
-        close()
-    }
-
-    onDrawBehind {
-        rhombi.forEach { r ->
-            val top = Offset(r.cx, r.cy - halfH)
-            val right = Offset(r.cx + halfW, r.cy)
-            val bottom = Offset(r.cx, r.cy + halfH)
-            val left = Offset(r.cx - halfW, r.cy)
-
-            // Keep the centre almost centered. The four facets are deliberately
-            // angular and flat so the result reads as a printed rhombus pattern.
-            val centre = Offset(r.cx, r.cy)
-
-            val colors = when (r.variant) {
-                0 -> arrayOf(light, dark, mid, deepest)
-                1 -> arrayOf(mid, light, dark, mid)
-                2 -> arrayOf(dark, mid, light, deepest)
-                else -> arrayOf(mid, deepest, mid, light)
-            }
-
-            drawPath(trianglePath(top, right, centre), colors[0])
-            drawPath(trianglePath(right, bottom, centre), colors[1])
-            drawPath(trianglePath(bottom, left, centre), colors[2])
-            drawPath(trianglePath(left, top, centre), colors[3])
-        }
-    }
+    onDrawBehind { drawPath(path, color = color) }
 }
 
 @Composable
